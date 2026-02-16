@@ -1,0 +1,3 @@
+name,descp,cat_id,sub_cat_id,brand,manage_stock,shop_id,meta_tag_title,meta_tag_description,meta_tag_keywords,product_tags,key_features,return_status,return_noof_days,variant_product,price,saleprice,stock
+T-shirt,T-shirt,24,43,nike,yes,342,T-shirt,T-shirt,T-shirt,"test,t-shirt",T-shirt,yes,10,no,1000,900,100
+T-shirt,T-shirt,24,43,nike,yes,342,T-shirt,T-shirt,T-shirt,"test,t-shirt",T-shirt,yes,10,no,1000,900,100

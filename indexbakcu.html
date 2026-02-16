@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<style>
+body, html {
+  height: 100%;
+  margin: 0;
+}
+
+.bgimg {
+  background-image: url('/w3images/forestbridge.jpg');
+  background:#FFFFFF;
+  height: 100%;
+  background-position: center;
+  background-size: cover;
+  position: relative;
+  color: white;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 25px;
+}
+
+.topleft {
+  position: absolute;
+  top: 0;
+  left: 16px;
+}
+
+.bottomleft {
+  position: absolute;
+  bottom: 0;
+  left: 16px;
+}
+
+.middle {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+hr {
+  margin: auto;
+  width: 40%;
+}
+
+         @-webkit-keyframes fadeIn {
+            0% {opacity: 0;}
+            100% {opacity: 1;}
+         }
+         
+         @keyframes fadeIn {
+            0% {opacity: 0;}
+            100% {opacity: 1;}
+         }
+         
+         .fadeIn {
+             -webkit-animation-duration: 2s;
+            animation-duration: 2s;
+            -webkit-animation-fill-mode: both;
+            animation-fill-mode: both;
+            -webkit-animation-name: fadeIn;
+            animation-name: fadeIn;
+         }
+</style>
+<body>
+
+<div class="bgimg">
+  <!--<div class="topleft">-->
+  <!--  <p>Vegly</p>-->
+  <!--</div>-->
+  <div class="middle">
+        <img src="coming.jpg" class="fadeIn"/>
+       <!-- <p style="margin:2px; color: #cf1673;">Under Construction</p>
+    <h1 style="margin:2px;color: #cf1673;">COMING SOON</h1> -->
+    <!--<hr>-->
+  </div>
+  <div class="bottomleft">
+    <!--<p>Some text</p>-->
+  </div>
+</div>
+
+</body>
+</html>

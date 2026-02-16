@@ -1,0 +1,13 @@
+/application/config/database.php
+/check_*.php
+/create_test_sub.php
+/get_plans_data.php
+/get_doctor_plans.php
+/update_plans_table.php
+/add_type_column.php
+/merge_plans.php
+/test_sessions.php
+/application/logs/*
+/vendor/
+*.log
+.DS_Store

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Doctto</title>
+    <!-- <link rel="stylesheet" href="https://cmdemo.in/html/2022/laasa-foundation/css/dashboard.css"> -->
+    <link rel="stylesheet" href="styles.min.css">
+
+	<style>
+body {
+	margin-top:20px;
+	background:#fff;
+}
+
+/*Invoice*/
+.invoice .top-left {
+    font-size:65px;
+	color:#3ba0ff;
+}
+
+.invoice .top-right {
+	text-align:right;
+	padding-right:20px;
+}
+
+.invoice .table-row {
+	margin-left:-15px;
+	margin-right:-15px;
+	margin-top:25px;
+}
+
+.invoice .payment-info {
+	font-weight:500;
+}
+
+.invoice .table-row .table>thead {
+	border-top:1px solid #ddd;
+}
+
+.invoice .table-row .table>thead>tr>th {
+	border-bottom:none;
+}
+
+.invoice .table>tbody>tr>td {
+	padding:8px 14px;
+}
+
+.invoice .invoice-total {
+	margin-right:-10px;
+	font-size:16px;
+}
+
+.invoice .last-row {
+	border-bottom:1px solid #ddd;
+}
+
+.invoice-ribbon {
+	width:85px;
+	height:88px;
+	overflow:hidden;
+	position:absolute;
+	top:-1px;
+	right:14px;
+}
+
+.ribbon-inner {
+	text-align:center;
+	-webkit-transform:rotate(45deg);
+	-moz-transform:rotate(45deg);
+	-ms-transform:rotate(45deg);
+	-o-transform:rotate(45deg);
+	position:relative;
+	padding:7px 0;
+	left:-5px;
+	top:11px;
+	width:120px;
+	background-color:#66c591;
+	font-size:15px;
+	color:#fff;
+}
+
+.ribbon-inner:before,.ribbon-inner:after {
+	content:"";
+	position:absolute;
+}
+
+.ribbon-inner:before {
+	left:0;
+}
+
+.ribbon-inner:after {
+	right:0;
+}
+
+/*.table td, .table th {
+	border-top: 2px solid #276ef1;
+}*/
+
+.invoice .table>tbody>tr>td {
+	border-bottom: 1px solid #276ef1;
+}
+
+@media(max-width:575px) {
+	.invoice .top-left,.invoice .top-right,.invoice .payment-details {
+		text-align:center;
+	}
+
+	.invoice .from,.invoice .to,.invoice .payment-details {
+		float:none;
+		width:100%;
+		text-align:center;
+		margin-bottom:25px;
+	}
+
+	.invoice p.lead,.invoice .from p.lead,.invoice .to p.lead,.invoice .payment-details p.lead {
+		font-size:22px;
+	}
+
+	.invoice .btn {
+		margin-top:10px;
+	}
+}
+
+@media print {
+	.invoice {
+		width:900px;
+		height:800px;
+	}
+}
+
+.container {
+                max-width: 1200px;
+                width: 100%;
+                padding-right: 15px;
+                padding-left: 15px;
+                margin-right: auto;
+                margin-left: auto;
+            }
+            .align-items-center {
+                -ms-flex-align: center !important;
+                -webkit-box-align: center !important;
+                align-items: center !important;
+            }
+
+.row {
+                display: -ms-flexbox;
+                display: -webkit-box;
+                display: flex;
+                -ms-flex-wrap: wrap;
+                flex-wrap: wrap;
+                margin-right: -15px;
+                margin-left: -15px;
+            }
+            .col-md-4 {
+                -ms-flex: 0 0 33.333333%;
+                -webkit-box-flex: 0;
+                flex: 0 0 33.333333%;
+                max-width: 33.333333%;
+            }
+            .col, .col-1, .col-10, .col-11, .col-12, .col-2, .col-3, .col-4, .col-5, .col-6, .col-7, .col-8, .col-9, .col-auto, .col-lg, .col-lg-1, .col-lg-10, .col-lg-11, .col-lg-12, .col-lg-2, .col-lg-3, .col-lg-4, .col-lg-5, .col-lg-6, .col-lg-7, .col-lg-8, .col-lg-9, .col-lg-auto, .col-md, .col-md-1, .col-md-10, .col-md-11, .col-md-12, .col-md-2, .col-md-3, .col-md-4, .col-md-5, .col-md-6, .col-md-7, .col-md-8, .col-md-9, .col-md-auto, .col-sm, .col-sm-1, .col-sm-10, .col-sm-11, .col-sm-12, .col-sm-2, .col-sm-3, .col-sm-4, .col-sm-5, .col-sm-6, .col-sm-7, .col-sm-8, .col-sm-9, .col-sm-auto, .col-xl, .col-xl-1, .col-xl-10, .col-xl-11, .col-xl-12, .col-xl-2, .col-xl-3, .col-xl-4, .col-xl-5, .col-xl-6, .col-xl-7, .col-xl-8, .col-xl-9, .col-xl-auto {
+                    position: relative;
+                    width: 100%;
+                    padding-right: 15px;
+                    padding-left: 15px;
+                }
+	</style>
+</head>
+
+<body>
+		<div class="container bootstrap snippets bootdeys">
+		<div class="row justify-content-center">
+		  <div class="col-sm-12">
+			  	<div class="panel panel-default invoice" id="invoice">
+				  <div class="panel-body" style="border: 1px solid #ebebeb; padding: 20px;">					
+				    <div class="row">
+
+						<div class="col-sm-6 top-left">
+							<h6 style="font-size: 16px; color: #276ef1;">TAX INVOICE</h6>
+							<h5 style="color: #000;">DOCTTO</h5>
+							<h6 style="font-size: 14px; color: #000;">GSTIN 36AAXCA9101E1ZK			 PAN AAXCA9101E</h6>
+							<p style="font-size: 14px; color: #000; width: 480px; margin-bottom: 0px;">H NO 224, ROAD NO 10, SRI RAM HILLS BONAKAL ROAD, Khammam, TELANGANA, 507001</p>
+							<p style="font-size: 14px; color: #000; margin-bottom: 0px;"><span style="font-weight: 600;">Mobile: </span>9490067418&nbsp;&nbsp;&nbsp;&nbsp;<span style="font-weight: 600;">Email: </span>doctto108@gmail.com</p>
+							<p style="font-size: 14px; color: #000; margin-bottom: 0px;"><span style="font-weight: 600">Website: </span>www.doctto.com</p>
+						</div>
+
+						<div class="col-sm-6 top-right">
+								<h6 style="font-size: 14px; color: #000; font-weight: 600;">ORIGINAL FOR RECIPIENT</h6>
+								<img src="logo1.png" width="100">
+					    </div>
+
+					</div><br>
+					<div class="row">
+
+						<div class="col-md-4 from">
+							<p class="lead marginbottom" style="font-size: 14px; color: #000; margin-bottom: 10px;">Invoice #: <span style="font-weight: 600;">INV-22335679953895</span></p>
+							<p style="font-size: 14px; color: #000; margin-bottom: 0px; font-weight: 600;">Customer Details: </p>
+							<p style="font-size: 14px; color: #000; margin-bottom: 0px; font-weight: 700;">T ARJUN</p>
+							<p style="font-size: 14px; color: #000; margin-bottom: 0px;">Phone: 7659805507</p>
+							<p style="font-size: 14px; color: #000; margin-bottom: 0px;">drtatineninagarjun@gmail.com</p>
+							<p style="font-size: 14px; color: #000; margin-bottom: 0px;">Place of Supply: 36- TELANGANA</p>
+						</div>
+
+						<div class="col-md-4 to">
+							<p class="lead marginbottom" style="font-size: 14px; color: #000; margin-bottom: 10px; font-weight: 600;">Invoice Date: <span style="font-weight: 700;">25 MAY 2023</span></p>
+							<p style="font-size: 14px; color: #000; margin-bottom: 0px;">Billing Address: </p>
+							<p style="font-size: 14px; color: #000; margin-bottom: 0px; width: 250px;">Nehru Nagar, Khammam, Telangana, 507002</p>
+
+					    </div>
+
+					    <div class="col-md-4 text-right">							
+					    </div>
+
+					</div>
+
+					<div class="row table-row">
+						<table class="table">
+					      <thead>
+					        <tr>
+					          <th class="text-center" style="width:5%; border-top: 2px solid #276ef1; border-bottom: 2px solid #276ef1;">#</th>
+					          <th style="width:42%; border-top: 2px solid #276ef1; border-bottom: 2px solid #276ef1;">Item</th>
+					          <th class="text-right" style="width:10%; border-top: 2px solid #276ef1; border-bottom: 2px solid #276ef1;">Rate/Item</th>
+					          <th class="text-right" style="width:5%; border-top: 2px solid #276ef1; border-bottom: 2px solid #276ef1;">Qty</th>
+					          <th class="text-right" style="width:15%; border-top: 2px solid #276ef1; border-bottom: 2px solid #276ef1;">Taxable Value</th>
+					          <th class="text-right" style="width:13%; border-top: 2px solid #276ef1; border-bottom: 2px solid #276ef1;">Tax Amount</th>
+					          <th class="text-right" style="width:10%; border-top: 2px solid #276ef1; border-bottom: 2px solid #276ef1;">Amount</th>
+					        </tr>
+					      </thead>
+					      <tbody>
+					        <tr>
+					          <td class="text-center" style="font-size: 14px; font-weight: 600;">1</td>
+					          <td style="font-weight: 600; font-size: 14px;">consultation fee</td>
+					          <td style="font-size: 14px;" class="text-right">500.00</td>
+					          <td style="font-size: 14px;" class="text-right">1.0</td>
+					          <td style="font-size: 14px;" class="text-right">500.00</td>
+					          <td style="font-size: 14px;" class="text-right">0.00(0.0%)</td>
+					          <td style="font-size: 14px;" class="text-right">500</td>
+					        </tr>
+
+					        <!-- Total Amount Section -->
+					        <tr style="border-bottom: inherit !important;">
+					          <td class="text-center" style="font-size: 14px; border: inherit !important; font-weight: 600; border-bottom: inherit !important;"></td>
+					          <td style="font-weight: 600; font-size: 14px; border: inherit !important; border-bottom: inherit !important;"> </td>
+					          <td style="font-size: 14px; border: inherit !important; border-bottom: inherit !important;" class="text-right"></td>
+					          <td style="font-size: 14px; border: inherit !important; border-bottom: inherit !important;" class="text-right"></td>
+					          <td style="font-size: 14px; border-bottom: 2px solid #a7a7a7; font-weight: 600;" class="text-right">Taxable Amount</td>
+					          <td style="font-size: 14px; border-bottom: 2px solid #a7a7a7;" class="text-right"></td>
+					          <td style="font-size: 14px; border-bottom: 2px solid #a7a7a7; font-weight: 600;" class="text-right"><span>Rs.</span>500.00</td>
+					        </tr>
+					        <tr>
+					          <td class="text-center" style="font-size: 14px; border: inherit !important; font-weight: 600; border-bottom: inherit !important;"></td>
+					          <td style="font-weight: 600; border: inherit !important; font-size: 14px; border-bottom: inherit !important;"> </td>
+					          <td style="font-size: 14px;border: inherit !important; border-bottom: inherit !important;" class="text-right"></td>
+					          <td style="font-size: 14px; border: inherit !important; border-bottom: inherit !important;" class="text-right"></td>
+					          <td style="font-size: 14px; border-bottom: 2px solid #a7a7a7; font-weight: 600;" class="text-right">Total</td>
+					          <td style="font-size: 14px; border-bottom: 2px solid #a7a7a7;" class="text-right"></td>
+					          <td style="font-size: 14px; border-bottom: 2px solid #a7a7a7; font-weight: 600;" class="text-right"><span>Rs.</span>500.00</td>
+					        </tr>					        
+					       </tbody>
+					    </table>					    	
+					</div>
+					<div class="row" style="border-bottom: 1px solid #276ef1;">
+						<div class="col-md-6">
+						    <p class="text-left" style="font-size: 14px; margin-bottom: 4px;">Total Items / Qty: 1/1.0</p>					
+						</div>    
+						<div class="col-md-6">    					       			
+						    <p class="text-right" style="font-size: 14px; margin-bottom: 4px; margin-top: 0px;">Total amount (in words): INR Five Hundred Rupees Only</p>
+					   	</div>
+					</div>
+					<p class="text-right" style="font-size: 14px; font-weight: 600; margin-bottom: 4px; margin-top: 4px;"><img src="sucess.png" width="20"> Amount Paid</p>
+
+
+					<div class="row">
+						<div class="col-md-4">
+							<img src="scan.jpg" width="200">
+						</div>
+						<div class="col-md-8">
+							<p style="font-size: 14px; margin-bottom: 4px; font-weight: 600;">Bank Details:</p>
+							<p style="margin-bottom: 4px;"><span style="width:15%; display: inline-block; font-weight: 600; font-size: 14px;">Bank: </span>State Bank of India</p>
+							<p style="margin-bottom: 4px;"><span style="width:15%; display: inline-block; font-weight: 600; font-size: 14px;">Account #: </span>00000041865670067</p>
+							<p style="margin-bottom: 4px;"><span style="width:15%; display: inline-block; font-weight: 600; font-size: 14px;">IFSC: </span>SBIN0021729</p>
+							<p style="margin-bottom: 4px;"><span style="width:15%; display: inline-block; font-weight: 600; font-size: 14px;">Branch: </span>MUSTAFANAGAR KHAMMAM</p>
+					    </div>					 
+					</div>					
+				  </div>
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
