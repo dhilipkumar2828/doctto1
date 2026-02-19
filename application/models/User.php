@@ -487,7 +487,7 @@ class User extends CI_Model {
     }
 
     
-    function checkLogin($username,$password)
+    function checkLogin($username,$password,$token=NULL)
     {
       
                        $this->db->where('phone',$username);
@@ -513,9 +513,11 @@ class User extends CI_Model {
 
              $row = $chk->row();
              $name = $row->first_name." ".$row->last_name;
-                      // Token Logic
-             $token = md5($row->id . time() . rand());
-             $this->db->update("users", array('token' => $token, 'email' => $row->email), array('id' => $row->id));
+             
+             // If token is provided (JWT from header), update it in DB
+             if (!empty($token)) {
+                 $this->db->update("users", array('token' => $token, 'email' => $row->email), array('id' => $row->id));
+             }
             
              if($row->lat=='' || $row->lng=='')
              {
@@ -527,7 +529,7 @@ class User extends CI_Model {
              }
 
 
-             $res = array('status' =>TRUE,'user_id'=>$row->id,'token'=>$token,'name'=>$name,'phone'=>$row->phone,'email'=>$row->email,'loc_status'=>$loc_status,'message'=>"Login Success");
+             $res = array('status' =>TRUE,'user_id'=>$row->id,'name'=>$name,'phone'=>$row->phone,'email'=>$row->email,'loc_status'=>$loc_status,'message'=>"Login Success");
              return $res;
 
              }
@@ -5499,29 +5501,55 @@ function whishList($user_id)
 }
 
 
-function profileDetails($user_id,$dob)
-{
-    // $qry = $this->db->query("select * from users where id='".$user_id."'");
-                      $this->db->select('*');
-                      $this->db->where('id',$user_id);
-                    //   $this->db->where('dob',$dob);
-     $qry     =       $this->db->get('users');
-    if($qry->num_rows()>0)
+    function profileDetails($user_id,$dob)
     {
-        $row = $qry->row();
-        if($row->image!='')
+        // $qry = $this->db->query("select * from users where id='".$user_id."'");
+                          $this->db->select('*');
+                          $this->db->where('id',$user_id);
+                        //   $this->db->where('dob',$dob);
+         $qry     =       $this->db->get('users');
+        if($qry->num_rows()>0)
         {
-             $image = base_url()."uploads/users/".$row->image;
+            $row = $qry->row();
+            if($row->image!='')
+            {
+                 $image = base_url()."uploads/users/".$row->image;
+            }
+            else
+            {
+                 $image = base_url()."uploads/profile-icon-3.png";
+            }
+            
+            // Loading subscription model to get current plan
+            $this->load->model('subscription_api_model');
+            $subscription = $this->subscription_api_model->get_my_subscription($user_id, 'user');
+            $sub_plan_name = $subscription ? $subscription->plan_name : "No Active Plan";
+            $sub_status = $subscription ? $subscription->status : "inactive";
+            $remaining_days = 0;
+            if ($subscription && !empty($subscription->end_date)) {
+                $remaining_seconds = strtotime($subscription->end_date) - time();
+                $remaining_days = max(0, ceil($remaining_seconds / (60 * 60 * 24)));
+            }
+           
+            $sub_plan_price = $subscription ? $subscription->plan_price : 0;
+           
+            $ar = array(
+                'id'=>$row->id,
+                'name'=>$row->first_name,
+                'email'=>$row->email,
+                'gender'=>$row->gender,
+                'phone'=>$row->phone,
+                'image'=>$row->image,
+                'image_path'=>$image,
+                'dob'=>$row->dob,
+                'subscription_plan_name' => $sub_plan_name,
+                'subscription_plan_price' => $sub_plan_price,
+                'subscription_status' => $sub_status,
+                'remaining_days' => (int)$remaining_days
+            );
+             return array('status' =>TRUE,'profile_details'=>$ar);
         }
-        else
-        {
-             $image = base_url()."uploads/profile-icon-3.png";
-        }
-       
-        $ar = array('id'=>$row->id,'name'=>$row->first_name,'email'=>$row->email,'gender'=>$row->gender,'phone'=>$row->phone,'image'=>$row->image,'image_path'=>$image,'dob'=>$row->dob);
-         return array('status' =>TRUE,'profile_details'=>$ar);
     }
-}
 
 function browse_file($user_id)
 {

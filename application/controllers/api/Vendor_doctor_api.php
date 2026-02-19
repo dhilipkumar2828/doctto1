@@ -1115,9 +1115,11 @@ class Vendor_doctor_api extends REST_Controller {
       }
    }
    
-    public function doctors_details_post() 
+    public function doctors_details_post($doctor_id = NULL) 
     { 
-      $doctor_id = $this->post('doctor_id');
+      if (empty($doctor_id)) {
+          $doctor_id = $this->post('doctor_id');
+      }
       $sql = $this->vendor_doctor_api_model->doctors_details($doctor_id);
       
       if($sql)

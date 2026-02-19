@@ -4,6 +4,10 @@ if (!defined('BASEPATH')) exit('No direct script access allowed');
 //include Rest Controller library
 require APPPATH . '/libraries/REST_Controller.php';
 use Restserver\Libraries\REST_Controller;
+/**
+ * @property User $user
+ * @property Common_model $common_model
+ */
 class User_api extends REST_Controller {
 
     public function __construct() 
@@ -24,7 +28,8 @@ class User_api extends REST_Controller {
         header("Access-Control-Allow-Headers: Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers,Authorization,Access-Control-Allow-Origin,Access-Control-Allow-Methods");
     parent::__construct();
         $this->load->model('user');
-    //   $this->common_model->auth();
+        $this->load->model('common_model');
+        $this->common_model->auth();
        
     }
     
@@ -572,9 +577,22 @@ class User_api extends REST_Controller {
     {
               $username = $this->post('username');
               $password = md5($this->post('password'));
-            //   $token = $this->post('token');
-            //   $platform = $this->post('platform');
-               $chk = $this->user->checkLogin($username,$password);
+              
+              // Extract token from Header (Bearer Token)
+              $headers = $this->input->get_request_header('Authorization');
+              $token = "";
+              if (!empty($headers)) {
+                  if (preg_match('/Bearer\s(\S+)/', $headers, $matches)) {
+                      $token = $matches[1];
+                  }
+              }
+              
+              // Fallback to body token if header is empty
+              if (empty($token)) {
+                  $token = $this->post('token');
+              }
+
+               $chk = $this->user->checkLogin($username,$password,$token);
                if($chk=='error')
                {
                   $this->response($chk, REST_Controller::HTTP_OK);  
@@ -683,10 +701,12 @@ class User_api extends REST_Controller {
     }
 
 
-    function profile_details_post()
+    function profile_details_post($user_id = NULL)
     {
-             $user_id =  $this->post('user_id');
-            //   $dob =  $this->post('dob');
+              if (empty($user_id)) {
+                  $user_id =  $this->post('user_id');
+              }
+              $dob =  $this->post('dob');
               $chk = $this->user->profileDetails($user_id,$dob);
               $this->response($chk, REST_Controller::HTTP_OK); 
     }
@@ -928,7 +948,8 @@ class User_api extends REST_Controller {
               $pincode = $this->post('pincode');
               $address_type  = $this->post('address_type');
 
-               $chk = $this->user->updateAddress($address_id,$user_id,$name,$mobile,$address,$locality,$city,$state,$pincode,$address_type);
+               $landmark =  $this->post('landmark');
+               $chk = $this->user->updateAddress($address_id,$user_id,$name,$mobile,$address,$locality,$city,$state,$pincode,$address_type,$landmark);
              
                   $this->response($chk, REST_Controller::HTTP_OK);  
        }

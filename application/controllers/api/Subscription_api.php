@@ -75,7 +75,7 @@ class Subscription_api extends REST_Controller {
 
         if ($plans) {
             foreach ($plans as &$p) {
-                $p->is_subscribed = ($active_sub && $active_sub->plan_id == $p->id);
+                $p->is_subscribed = ($active_sub && $active_sub->plan_id == $p->id) ? 1 : 0;
             }
             $this->response(['status' => 'success', 'data' => $plans], REST_Controller::HTTP_OK);
         } else {
@@ -119,7 +119,7 @@ class Subscription_api extends REST_Controller {
 
         if ($plans) {
             foreach ($plans as &$p) {
-                $p->is_subscribed = ($active_sub && $active_sub->doctor_subscription_plan_id == $p->id);
+                $p->is_subscribed = ($active_sub && $active_sub->doctor_subscription_plan_id == $p->id) ? 1 : 0;
             }
             $this->response(['status' => 'success', 'data' => $plans], REST_Controller::HTTP_OK);
         } else {
@@ -192,7 +192,7 @@ class Subscription_api extends REST_Controller {
             // Check expiry
             $end_date = ($type == 'doctor') ? $subscription->end_at : $subscription->end_date;
             $remaining_seconds = strtotime($end_date) - time();
-            $remaining_days = floor($remaining_seconds / (60 * 60 * 24));
+            $remaining_days = ceil($remaining_seconds / (60 * 60 * 24));
 
             if ($remaining_seconds <= 0) {
                 // Automatically mark as expired if found active but date passed
@@ -761,6 +761,40 @@ public function subscribe_to_doctor_post() {
             ], REST_Controller::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+    /**
+     * Get all doctors with active subscriptions
+     * Matches user requested "doctor list" format
+     */
+    public function subscribed_doctors_list_post()
+    {
+        $doctors = $this->subscription_api_model->get_all_subscribed_doctors();
+        if ($doctors) {
+            $this->response(['status' => 'success', 'data' => $doctors], REST_Controller::HTTP_OK);
+        } else {
+            $this->response(['status' => 'error', 'message' => 'No doctors found'], REST_Controller::HTTP_OK);
+        }
+    }
+
+    /**
+     * Get details for a specific subscribed doctor
+     * Matches user requested "subscribed doctor details" format
+     */
+    public function subscribed_doctor_details_post($id = NULL)
+    {
+        $doctor_id = $id ? $id : $this->post('doctor_id');
+        if (empty($doctor_id)) {
+            $this->response(['status' => false, 'message' => 'doctor_id is required'], REST_Controller::HTTP_OK);
+            return;
+        }
+
+        $doctor = $this->subscription_api_model->get_subscribed_doctor_details($doctor_id);
+        if ($doctor) {
+            $this->response(['status' => true, 'data' => $doctor], REST_Controller::HTTP_OK);
+        } else {
+            $this->response(['status' => false, 'message' => 'Doctor not found or not subscribed'], REST_Controller::HTTP_OK);
+        }
+    }
 }
+
 
 
