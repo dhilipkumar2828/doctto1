@@ -364,7 +364,7 @@ class Vendor_doctor_api_model extends CI_Model {
             }
          }   
          else
-         {
+         {  
              return array('status' =>FALSE, 'message'=>"Invalid OTP");
          }  
     }
@@ -1271,12 +1271,8 @@ class Vendor_doctor_api_model extends CI_Model {
         }
         else
         {
-              
-                if(!$upd)
-                {
-                     $report=array('status'=>FALSE,'message'=>"DATA NOT FOUND");
-                     return $report;
-                }
+             $report=array('status'=>FALSE,'message'=>"DATA NOT FOUND");
+             return $report;
         }
      }
      
@@ -1394,50 +1390,48 @@ class Vendor_doctor_api_model extends CI_Model {
         
     
         
-    function checkLogin($username,$password,$token)
+    function checkLogin($username, $password, $token)
     {
-            // $chk = $this->db->where(array('mobile_number'=>$username,'password'=>$password))->get('doctors');
-            
-                       $this->db->where('password',$password);
-                       $this->db->where('mobile_number',$username); 
-                       $this->db->or_where('email',$username);
-               $chk =  $this->db->get('doctors');
-                if($chk->num_rows()>0)
-                {
-                     $row = $chk->row();
-                     if($row->doctor_login_status=='inactive')
-                     {
-                        return array('status' =>FALSE, 'message'=>"Your account is inactivated, Please contact admin");
-                     }
-                     else if($row->doctor_login_status=='active')
-                     {
-                       
-                            if($row->doctor_image!='')
-                            {
-                                $img = base_url()."uploads/doctors/".$row->doctor_image;
-                            }
-                            else
-                            {
-                                $img = base_url()."uploads/noproduct.png";
-                            }
-                            $data =array('token'=>$token);
-                            $wr = array('mobile_number'=>$row->mobile_number);
-                            $this->db->update("doctors",$data,$wr);
-                            
-                         $res = array('status' =>TRUE,'doctor_id'=>$row->id,'mobile_number'=>$row->mobile_number,'email'=>$row->email,'doctor_name'=>$row->doctor_name,'hospital_name'=>$row->hospital_name,'address'=>$row->address,'doctor_image'=>$img);
-                         
-                    
-                         return $res;
-                     }
-                         
-
-                    
-                }
-                else
-                {
-                    return array('status' =>FALSE, 'message'=>"Invalid Mobile or Password");
-                }
+        $this->db->where('password', $password);
+        $this->db->group_start();
+        $this->db->where('mobile_number', $username);
+        $this->db->or_where('email', $username);
+        $this->db->group_end();
+        $chk = $this->db->get('doctors');
         
+        if ($chk->num_rows() > 0) {
+            $row = $chk->row();
+            if ($row->doctor_login_status == 'inactive') {
+                return array('status' => FALSE, 'message' => "Your account is inactivated, Please contact admin");
+            } else if ($row->doctor_login_status == 'active') {
+
+                if ($row->doctor_image != '') {
+                    $img = base_url() . "uploads/doctors/" . $row->doctor_image;
+                } else {
+                    $img = base_url() . "uploads/noproduct.png";
+                }
+
+                // If token is provided from header/app, update it in DB
+                if (!empty($token)) {
+                    $this->db->update("doctors", array('token' => $token), array('id' => $row->id));
+                }
+
+                $res = array(
+                    'status' => TRUE,
+                    'doctor_id' => $row->id,
+                    'mobile_number' => $row->mobile_number,
+                    'email' => $row->email,
+                    'doctor_name' => $row->doctor_name,
+                    'hospital_name' => $row->hospital_name,
+                    'address' => $row->address,
+                    'doctor_image' => $img
+                );
+
+                return $res;
+            }
+        } else {
+            return array('status' => FALSE, 'message' => "Invalid Mobile or Password");
+        }
     }
 
     function consults_for_today($doctor_id){
@@ -2741,6 +2735,9 @@ class Vendor_doctor_api_model extends CI_Model {
         
         $value = $this->db->where($where)->get($table);
         $query =  $value->num_rows();
+
+        // Loading subscription model to get current plan
+        $this->load->model('subscription_api_model');
         
         if($query>0){
             
@@ -2902,9 +2899,19 @@ class Vendor_doctor_api_model extends CI_Model {
                 }
 
                 //$cat_array1 = implode(",", $cat_array);
+                
+                // Get Subscription Info
+                $subscription = $this->subscription_api_model->get_my_subscription($id, 'doctor');
+                $sub_plan_name = $subscription ? $subscription->plan_name : "No Active Plan";
+                $sub_status = $subscription ? $subscription->status : "inactive";
+                $remaining_days = 0;
+                if ($subscription && !empty($subscription->end_at)) {
+                    $remaining_seconds = strtotime($subscription->end_at) - time();
+                    $remaining_days = max(0, floor($remaining_seconds / (60 * 60 * 24)));
+                }
 
                 
-                $array = array('id'=>$id,'doctor_image'=>$doctor_image,'cover_image'=>$cover_image,'digital_signature'=>$digital_signature,'doctor_name'=>$doctor_name,'mobile_number'=>$mobile_number,'email'=>$email,'specialisation'=>$specialisation_name,'specialist_in'=>$specialist_name,'license'=>$license,'designations'=>$desig_name,'experience'=>$experience,'voice_call'=>$voice_call,'video_call'=>$video_call,'chat_price'=>$chat_price,'aboutus'=>$aboutus,'morning_start_time'=>$morning_start_time,'morning_end_time'=>$morning_end_time,'afternoon_start_time'=>$afternoon_start_time,'afternoon_end_time'=>$afternoon_end_time,'evening_start_time'=>$evening_start_time,'evening_end_time'=>$evening_end_time,'category_name'=>$cat_array,'blue_tick'=>$blue_tick,'doctor_rating'=>$doctor_rating,'total_users_reviewed'=>$users_rating_count,'doctor_show_status'=>$query->doctor_show_status,'gender'=>$gender);
+                $array = array('id'=>$id,'doctor_image'=>$doctor_image,'cover_image'=>$cover_image,'digital_signature'=>$digital_signature,'doctor_name'=>$doctor_name,'mobile_number'=>$mobile_number,'email'=>$email,'specialisation'=>$specialisation_name,'specialist_in'=>$specialist_name,'license'=>$license,'designations'=>$desig_name,'experience'=>$experience,'voice_call'=>$voice_call,'video_call'=>$video_call,'chat_price'=>$chat_price,'aboutus'=>$aboutus,'morning_start_time'=>$morning_start_time,'morning_end_time'=>$morning_end_time,'afternoon_start_time'=>$afternoon_start_time,'afternoon_end_time'=>$afternoon_end_time,'evening_start_time'=>$evening_start_time,'evening_end_time'=>$evening_end_time,'category_name'=>$cat_array,'blue_tick'=>$blue_tick,'doctor_rating'=>$doctor_rating,'total_users_reviewed'=>$users_rating_count,'doctor_show_status'=>$query->doctor_show_status,'gender'=>$gender, 'subscription_plan_name' => $sub_plan_name, 'subscription_status' => $sub_status, 'remaining_days' => (int)$remaining_days);
 
   
             $ar = array('status' =>TRUE,'data'=>$array);

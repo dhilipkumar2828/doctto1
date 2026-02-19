@@ -27,10 +27,33 @@
                 <form method="post" action="<?php echo base_url(); ?>admin/doctor_subscription_plans/update" class="form-horizontal">
                     <input type="hidden" name="plan_id" value="<?php echo $plan->id; ?>">
                     
-                    <div class="form-group">
+                    <?php 
+                    $dropdown_plans = ['Classic Plan', 'Advanced Plan', 'Popular Plan'];
+                    $is_custom_name = !in_array($plan->name, $dropdown_plans);
+                    ?>
+
+                    <div class="form-group" id="plan_name_dropdown_div" style="<?= $is_custom_name ? 'display:none;' : '' ?>">
                         <label class="col-sm-2 control-label">Plan Name <span class="text-danger">*</span></label>
                         <div class="col-sm-10">
-                            <input type="text" name="name" class="form-control" value="<?php echo $plan->name; ?>" required>
+                            <select name="<?= $is_custom_name ? '' : 'name' ?>" id="plan_name_dropdown" class="form-control" <?= $is_custom_name ? '' : 'required' ?>>
+                                <option value="">Select Plan</option>
+                                <option value="Classic Plan" <?= ($plan->name == 'Classic Plan') ? 'selected' : '' ?>>Classic Plan</option>
+                                <option value="Advanced Plan" <?= ($plan->name == 'Advanced Plan') ? 'selected' : '' ?>>Advanced Plan</option>
+                                <option value="Popular Plan" <?= ($plan->name == 'Popular Plan') ? 'selected' : '' ?>>Popular Plan</option>
+                                <option value="others">Others</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="plan_name_input_div" style="<?= $is_custom_name ? '' : 'display:none;' ?>">
+                        <label class="col-sm-2 control-label">Plan Name <span class="text-danger">*</span></label>
+                        <div class="col-sm-10">
+                            <div class="input-group">
+                                <input type="text" name="<?= $is_custom_name ? 'name' : '' ?>" id="plan_name_input" class="form-control" value="<?php echo $plan->name; ?>" <?= $is_custom_name ? 'required' : '' ?>>
+                                <span class="input-group-btn">
+                                    <button type="button" class="btn btn-warning" id="back_to_dropdown">Back to List</button>
+                                </span>
+                            </div>
                         </div>
                     </div>
                     
@@ -83,3 +106,23 @@
         </div>
     </div>
 </div>
+
+<script>
+$(document).ready(function() {
+    $('#plan_name_dropdown').on('change', function() {
+        if ($(this).val() === 'others') {
+            $('#plan_name_dropdown_div').hide();
+            $('#plan_name_input_div').show();
+            $('#plan_name_input').attr('name', 'name').prop('required', true).val('').focus();
+            $('#plan_name_dropdown').removeAttr('name').prop('required', false);
+        }
+    });
+
+    $('#back_to_dropdown').on('click', function() {
+        $('#plan_name_input_div').hide();
+        $('#plan_name_dropdown_div').show();
+        $('#plan_name_dropdown').attr('name', 'name').prop('required', true).val('');
+        $('#plan_name_input').removeAttr('name').prop('required', false);
+    });
+});
+</script>

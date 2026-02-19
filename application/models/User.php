@@ -513,8 +513,9 @@ class User extends CI_Model {
 
              $row = $chk->row();
              $name = $row->first_name." ".$row->last_name;
-          
-                $this->db->update("users",array('email'=>$row->email),array('id'=>$row->id));
+                      // Token Logic
+             $token = md5($row->id . time() . rand());
+             $this->db->update("users", array('token' => $token, 'email' => $row->email), array('id' => $row->id));
             
              if($row->lat=='' || $row->lng=='')
              {
@@ -526,7 +527,7 @@ class User extends CI_Model {
              }
 
 
-             $res = array('status' =>TRUE,'user_id'=>$row->id,'name'=>$name,'phone'=>$row->phone,'email'=>$row->email,'loc_status'=>$loc_status,'message'=>"Login Success");
+             $res = array('status' =>TRUE,'user_id'=>$row->id,'token'=>$token,'name'=>$name,'phone'=>$row->phone,'email'=>$row->email,'loc_status'=>$loc_status,'message'=>"Login Success");
              return $res;
 
              }

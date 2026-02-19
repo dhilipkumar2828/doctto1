@@ -590,20 +590,25 @@ class Vendor_doctor_api extends REST_Controller {
 
     public function login_post() 
     {
-            //   $pincode = $this->post('pincode');
-              $username = $this->post('username');
-              $password = md5($this->post('password'));
-              $token = $this->post('token');
-               $chk = $this->vendor_doctor_api_model->checkLogin($username,$password,$token);
-               if($chk=='error')
-               {
-                  $this->response($chk, REST_Controller::HTTP_OK);  
-               }
-               else
-               {
-                  $this->response($chk, REST_Controller::HTTP_OK);
-               }
-       
+        $username = $this->post('username');
+        $password = md5($this->post('password'));
+        
+        // Extract token from Header (Bearer Token)
+        $headers = $this->input->get_request_header('Authorization');
+        $token = "";
+        if (!empty($headers)) {
+            if (preg_match('/Bearer\s(\S+)/', $headers, $matches)) {
+                $token = $matches[1];
+            }
+        }
+        
+        // Fallback to body token if header is empty
+        if (empty($token)) {
+            $token = $this->post('token');
+        }
+        
+        $chk = $this->vendor_doctor_api_model->checkLogin($username, $password, $token);
+        $this->response($chk, REST_Controller::HTTP_OK);
     }
       
     

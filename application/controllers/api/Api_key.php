@@ -14,35 +14,47 @@ class Api_key extends MY_Controller {
 
    
 	
-	function generate_token()
-	{
-		if($this->input->get_post('type') && $this->input->get_post('apikey') && $this->input->get_post('pwd'))
-		{
-			$jwt = $this->config->item('jwt')['mobile'];
-			if($this->input->get_post('type')==$jwt['type'] && $this->input->get_post('apikey')==$jwt['apikey'] && $this->input->get_post('pwd')==$jwt['pwd'])
-			{
-				$token['apikey'] = $jwt['apikey'];
-           	 	$date = new DateTime();
-            	$token['iat'] = $date->getTimestamp();
-            	$token['exp'] = $date->getTimestamp() + 60*60*$jwt['expiration']; //To here is to generate token
-            	$token = JWT::encode($token,$jwt['secret'] ); //This is the output token
-			
-				$result = array('token' => $token);
-            $arr = array('error_code' => "valid", 'message' => "Records Found", "data" => $result);
-			}
-			else
-			{
-			$arr = array('error_code' => "invalid", 'message' => "No Records Found");	
-			}
-			
-		}
-		else
-			{
-			$arr = array('error_code' => "invalid", 'message' => "No Records Found");	
-			}
-		echo json_encode($arr, JSON_PRETTY_PRINT);
-		
-	}
+    function generate_token()
+    {
+        // Try getting from POST/GET first, default to raw input stream for JSON
+        $type = $this->input->get_post('type');
+        $apikey = $this->input->get_post('apikey');
+        $pwd = $this->input->get_post('pwd');
+
+        if (empty($type) || empty($apikey) || empty($pwd)) {
+            $stream_data = json_decode($this->input->raw_input_stream, true);
+            if (!empty($stream_data)) {
+                $type = $stream_data['type'] ?? $type;
+                $apikey = $stream_data['apikey'] ?? $apikey;
+                $pwd = $stream_data['pwd'] ?? $pwd;
+            }
+        }
+
+        if ($type && $apikey && $pwd) {
+            $jwt_config = $this->config->item('jwt')['mobile'];
+            if ($type == $jwt_config['type'] && $apikey == $jwt_config['apikey'] && $pwd == $jwt_config['pwd']) {
+                $token_payload = array(
+                    'apikey' => $jwt_config['apikey'],
+                    'iat' => time(),
+                    'exp' => time() + (60 * $jwt_config['expiration'])
+                );
+                
+                $token = JWT::encode($token_payload, $jwt_config['secret']);
+                
+                $arr = array(
+                    'error_code' => "valid", 
+                    'message' => "Token generated successfully", 
+                    'data' => array('token' => $token)
+                );
+            } else {
+                $arr = array('error_code' => "invalid", 'message' => "Invalid API credentials");
+            }
+        } else {
+            $arr = array('error_code' => "invalid", 'message' => "Missing required parameters (type, apikey, pwd)");
+        }
+        
+        echo json_encode($arr, JSON_PRETTY_PRINT);
+    }
 	
 	
 	

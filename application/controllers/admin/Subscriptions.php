@@ -28,15 +28,19 @@ class Subscriptions extends MY_Controller {
 
     public function create() {
         $type = $this->input->post('type');
+        // In create()
         $data = array(
             'name' => $this->input->post('name'),
             'plan_type' => $type,
             'price' => $this->input->post('price'),
             'duration_days' => $this->input->post('duration_days') ? $this->input->post('duration_days') : 30,
+            'call_chat' => $this->input->post('call_chat') ? $this->input->post('call_chat') : NULL,
+            'whatsapp_chat' => $this->input->post('whatsapp_chat') ? $this->input->post('whatsapp_chat') : NULL,
             'description' => $this->input->post('description'),
             'perks' => $this->input->post('perks'),
-            'max_doctors_allowed' => $this->input->post('max_doctors_allowed') ? $this->input->post('max_doctors_allowed') : NULL,
-            'is_active' => 1
+            'max_doctors_allowed' => $this->input->post('max_doctors_allowed') ? $this->input->post('max_doctors_allowed') : 0,
+            'total_consultations' => 0,
+            'is_active' => $this->input->post('is_active')
         );
 
         $this->db->insert('subscription_plans', $data);
@@ -57,10 +61,15 @@ class Subscriptions extends MY_Controller {
         $type = $this->input->post('type');
         
         $data = array(
+            'name' => $this->input->post('name'),
             'price' => $this->input->post('price'),
             'description' => $this->input->post('description'),
             'perks' => $this->input->post('perks'),
-            'duration_days' => $this->input->post('duration_days')
+            'duration_days' => $this->input->post('duration_days'),
+            'call_chat' => $this->input->post('call_chat') ? $this->input->post('call_chat') : NULL,
+            'whatsapp_chat' => $this->input->post('whatsapp_chat') ? $this->input->post('whatsapp_chat') : NULL,
+            'max_doctors_allowed' => $this->input->post('max_doctors_allowed') ? $this->input->post('max_doctors_allowed') : 0,
+            'is_active' => $this->input->post('is_active')
         );
 
         $this->db->where('id', $id)->update('subscription_plans', $data);

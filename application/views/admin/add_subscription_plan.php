@@ -38,10 +38,28 @@
 
                 <div class="ibox-content">
                     <form method="post" action="<?= base_url() ?>admin/subscription_plans/insert" class="form-horizontal">
-                        <div class="form-group">
+                        <div class="form-group" id="plan_name_dropdown_div">
                             <label class="col-sm-2 control-label">Plan Name *</label>
                             <div class="col-sm-10">
-                                <input type="text" name="name" class="form-control" required>
+                                <select name="name" id="plan_name_dropdown" class="form-control" required>
+                                    <option value="">Select Plan</option>
+                                    <option value="Classic Plan">Classic Plan</option>
+                                    <option value="Advanced Plan">Advanced Plan</option>
+                                    <option value="Popular Plan">Popular Plan</option>
+                                    <option value="others">Others</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group" id="plan_name_input_div" style="display:none;">
+                            <label class="col-sm-2 control-label">Plan Name *</label>
+                            <div class="col-sm-10">
+                                <div class="input-group">
+                                    <input type="text" id="plan_name_input" class="form-control">
+                                    <span class="input-group-btn">
+                                        <button type="button" class="btn btn-warning" id="back_to_dropdown">Back to List</button>
+                                    </span>
+                                </div>
                             </div>
                         </div>
 
@@ -150,8 +168,24 @@ function removeFeature(element) {
     }
 }
 
-// Form validation
+// Form validation and Plan Name toggle
 $(document).ready(function() {
+    $('#plan_name_dropdown').on('change', function() {
+        if ($(this).val() === 'others') {
+            $('#plan_name_dropdown_div').hide();
+            $('#plan_name_input_div').show();
+            $('#plan_name_input').attr('name', 'name').prop('required', true).val('').focus();
+            $('#plan_name_dropdown').removeAttr('name').prop('required', false);
+        }
+    });
+
+    $('#back_to_dropdown').on('click', function() {
+        $('#plan_name_input_div').hide();
+        $('#plan_name_dropdown_div').show();
+        $('#plan_name_dropdown').attr('name', 'name').prop('required', true).val('');
+        $('#plan_name_input').removeAttr('name').prop('required', false);
+    });
+
     $('form').on('submit', function(e) {
         let isValid = true;
         

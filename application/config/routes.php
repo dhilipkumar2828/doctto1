@@ -50,6 +50,14 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 |		my-controller/my-method	-> my_controller/my_method
 */
 $route['mypdf'] = "welcome/mypdf";
+$route['api/subscription-plans/doctor'] = 'api/Subscription_api/plan';
+$route['api/subscription-plans/doctor/(:any)'] = 'api/Subscription_api/plan/$1';
+$route['api/subscription-plans/customer'] = 'api/Subscription_api/customer_plan';
+$route['api/subscription-plans/customer/(:any)'] = 'api/Subscription_api/customer_plan/$1';
+$route['api/subscription-plans/subscribe-to-doctor'] = 'api/Subscription_api/subscribe_to_doctor';
+$route['api/subscription-plans/my-subscription'] = 'api/Subscription_api/my_subscription';
+$route['api/subscription-plans/history'] = 'api/Subscription_api/subscription_history';
+
 
 $route['web/store_wise_categories/(:num)'] = 'web/store_wise_categories';
 $route['web/store_categories/(:num)'] = 'web/store_categories';
@@ -65,3 +73,4 @@ $route['privacy'] = 'home/privacy';
 $route['terms'] = 'home/terms';
 $route['404_override'] = '';
 $route['translate_uri_dashes'] = FALSE;
+
