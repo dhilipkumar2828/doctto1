@@ -111,6 +111,23 @@ define("PHONEPE_SDK_SALT_INDEX", 1);
 define("PHONEPE_SDK_ENVIRONMENT", 'PRODUCTION'); // or 'SANDBOX' for testing
 define("PHONEPE_SDK_BASE_URL", 'https://api.phonepe.com/apis/pg-sandbox');   
 
+// --- PhonePe Hermes (Standard Checkout) Integration ---
+
+// UAT (Testing) Credentials
+define("PHONEPE_HERMES_UAT_MERCHANT_ID", 'PGTESTPAYUAT86'); 
+define("PHONEPE_HERMES_UAT_SALT_KEY", '96434309-7796-489d-8924-ab56988a6076');
+define("PHONEPE_HERMES_UAT_SALT_INDEX", 1);
+define("PHONEPE_HERMES_UAT_URL", 'https://api-preprod.phonepe.com/apis/pg-sandbox/pg/v1/pay');
+
+// PROD (Live) Credentials
+define("PHONEPE_HERMES_PROD_MERCHANT_ID", 'SU2510281348268224659678');
+define("PHONEPE_HERMES_PROD_SALT_KEY", 'd8ff0940-f6ce-4cd4-8e68-d37639800639');
+define("PHONEPE_HERMES_PROD_SALT_INDEX", 1);
+define("PHONEPE_HERMES_PROD_URL", 'https://api.phonepe.com/apis/hermes/pg/v1/pay');
+
+// Current Mode
+define("PHONEPE_HERMES_MODE", 'UAT'); // Now enabling REAL Production Mode
+
 // PhonePe Production Configuration
 define("PHONEPE_CLIENT_ID", 'M1Y5YWMA86HR'); // Production Client ID
 define("PHONEPE_CLIENT_SECRET", '168028f5-f3cf-40e3-a320-120926e1dcfb'); // Production Client Secret
