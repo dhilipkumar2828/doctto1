@@ -9,12 +9,32 @@ class Common_model extends CI_model {
     {
         // JWT Auth middleware
         $headers = $this->input->get_request_header('Authorization');
+        if (empty($headers) && isset($_SERVER['HTTP_AUTHORIZATION'])) {
+            $headers = $_SERVER['HTTP_AUTHORIZATION'];
+        } elseif (empty($headers) && isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+            $headers = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+        }
+        
         $jwt = $this->config->item('jwt'); // secret key for encode and decode
         $token = "";
         if (!empty($headers)) {
             if (preg_match('/Bearer\s(\S+)/', $headers, $matches)) {
                 $token = $matches[1];
+            } else {
+                // Fallback for cases where "Bearer " prefix might be missing
+                $token = $headers;
             }
+        }
+
+        // If still empty, check POST/GET for 'token' parameter
+        if (empty($token)) {
+            $token = $this->input->get_post('token');
+        }
+
+        if (empty($token)) {
+            $arr = array('error_code' => "invalid", 'message' => "Token Missing");
+            echo json_encode($arr, JSON_PRETTY_PRINT);
+            die;
         }
 
         try {

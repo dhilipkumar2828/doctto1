@@ -26,10 +26,38 @@ class User_api extends REST_Controller {
         header("Access-Control-Allow-Credentials: true");
         header("Access-Control-Allow-Methods: GET,HEAD,OPTIONS,POST,PUT");
         header("Access-Control-Allow-Headers: Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers,Authorization,Access-Control-Allow-Origin,Access-Control-Allow-Methods");
-    parent::__construct();
+        parent::__construct();
         $this->load->model('user');
         $this->load->model('common_model');
-        $this->common_model->auth();
+        
+        // Exclude public methods from mandatory authentication
+        $CI =& get_instance();
+        $method = $CI->router->fetch_method();
+        
+        $public_methods = array(
+            'login', 'login_post', 
+            'user_registration', 'user_registration_post', 
+            'user', 'user_post', 
+            'otp_verification', 'otp_verification_post', 
+            'resend_otp', 'resend_otp_post',
+            'forgotpassword', 'forgotpassword_post', 
+            'forgot_password_otp_verification', 'forgot_password_otp_verification_post', 
+            'resetPassword', 'resetPassword_post', 
+            'getwelcomescreens', 'getwelcomescreens_post', 
+            'getpincodeslist', 'getpincodeslist_post', 
+            'getAllCategories', 'getAllCategories_post', 
+            'getSubCategories', 'getSubCategories_post', 
+            'version_control', 'version_control_post', 
+            'homepagedata', 'homepagedata_post',
+            'getProducts', 'getProducts_post', 
+            'productDetails', 'productDetails_post', 
+            'getcontent', 'getcontent_post', 
+            'contact_details', 'contact_details_post'
+        );
+        
+        if (!in_array($method, $public_methods)) {
+            $this->common_model->auth();
+        }
        
     }
     
@@ -580,10 +608,18 @@ class User_api extends REST_Controller {
               
               // Extract token from Header (Bearer Token)
               $headers = $this->input->get_request_header('Authorization');
+              if (empty($headers) && isset($_SERVER['HTTP_AUTHORIZATION'])) {
+                  $headers = $_SERVER['HTTP_AUTHORIZATION'];
+              } elseif (empty($headers) && isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+                  $headers = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+              }
+              
               $token = "";
               if (!empty($headers)) {
                   if (preg_match('/Bearer\s(\S+)/', $headers, $matches)) {
                       $token = $matches[1];
+                  } else {
+                      $token = $headers;
                   }
               }
               
