@@ -367,4 +367,32 @@ class Phonepe_hermes extends REST_Controller {
             $this->response(['status' => 'error', 'message' => 'Log not found'], REST_Controller::HTTP_OK);
         }
     }
+
+    /**
+     * Verify payment status via GET
+     * URL: api/phonepe_hermes/verify_payment/MTID12345
+     */
+    public function verify_payment_get($mtid = null) {
+        if (!$mtid) {
+            $this->response(['status' => 'error', 'message' => 'MTID required'], REST_Controller::HTTP_OK);
+            return;
+        }
+
+        // Fresh check from PhonePe status API
+        $this->verify_and_update_status($mtid);
+
+        $this->db->where('merchant_transaction_id', $mtid);
+        $log = $this->db->get('payment_logs')->row();
+
+        if ($log) {
+            $this->response([
+                'status' => 'success',
+                'payment_status' => $log->payment_status,
+                'merchantTransactionId' => $mtid,
+                'data' => $log
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response(['status' => 'error', 'message' => 'Transaction not found'], REST_Controller::HTTP_OK);
+        }
+    }
 }
