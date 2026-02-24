@@ -86,8 +86,12 @@ defined('EXIT__AUTO_MIN') OR define('EXIT__AUTO_MIN', 9); // lowest automaticall
 defined('EXIT__AUTO_MAX') OR define('EXIT__AUTO_MAX', 125); // highest automatically-assigned error code
 
 
+$protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
 $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost';
-$url = "http://" . $host . "/doctto/";
+// Get the directory path dynamically
+$script_name = $_SERVER['SCRIPT_NAME'];
+$dir = str_replace(basename($script_name), "", $script_name);
+$url = $protocol . "://" . $host . $dir;
 
 define('ADMIN_ASSETS_PATH', $url . "admin_assets/");
 define('SHOP_LOGOS_PATH', $url . "uploads/shops/");
