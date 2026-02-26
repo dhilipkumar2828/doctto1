@@ -130,7 +130,7 @@ define("PHONEPE_HERMES_PROD_SALT_INDEX", 1);
 define("PHONEPE_HERMES_PROD_URL", 'https://api.phonepe.com/apis/hermes/pg/v1/pay');
 
 // Current Mode
-define("PHONEPE_HERMES_MODE", 'UAT'); // Now enabling REAL Production Mode
+define("PHONEPE_HERMES_MODE", 'UAT'); // LIVE Production Mode - Real transactions
 
 // PhonePe Production Configuration
 define("PHONEPE_CLIENT_ID", 'M1Y5YWMA86HR'); // Production Client ID

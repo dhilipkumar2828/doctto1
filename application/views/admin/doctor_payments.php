@@ -125,7 +125,7 @@
                                     <td><?php
                                      $qry = $this->db->query("select * from doctors where id='".$v->doctor_id."'");
                                      $doctors_row = $qry->row();
-                                     echo $doctors_row->doctor_name; ?>      
+                                     echo (!empty($doctors_row) && isset($doctors_row->doctor_name)) ? $doctors_row->doctor_name : 'N/A'; ?>      
                                     </td>
                                     <td><?= $v->patient_name; ?></td>
                                     <td><?= date('d M, Y , h:i A',strtotime($v->created_date))?></td>  

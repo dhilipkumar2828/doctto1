@@ -81,7 +81,7 @@ class Phonepe_hermes extends REST_Controller {
         // Custom callback URL from post if provided
         $custom_callback = $this->post('callback_url');
         $callback_url = $custom_callback ? $custom_callback : base_url('api/phonepe_hermes/callback'); 
-        $redirect_url = base_url('api/phonepe_hermes/redirect?mtid=' . $merchant_transaction_id);
+        $redirect_url = base_url('api/phonepe_hermes/verify_payment/' . $merchant_transaction_id);
 
         $payload = [
             'merchantId' => $merchant_id,

@@ -63,17 +63,28 @@ class Doctor_payments extends MY_Controller {
     
     // print_R( $this->data['doctor_id']);die;
     
+    if (empty($this->data['doctor_id'])) {
+        show_error('Appointment not found.');
+        return;
+    }
                              
                              $this->db->where('id',$this->data['doctor_id']->doctor_id);
     $this->data['doc_det'] = $this->db->get('doctors')->row();  
     
     // print_r($this->data['doc_det']);die;
     
+    if (!empty($this->data['doc_det'])) {
                           $this->db->where('id',$this->data['doc_det']->designations);
-    $this->data['desg'] = $this->db->get('designations')->row()->name; 
+        $desg_row = $this->db->get('designations')->row();
+        $this->data['desg'] = !empty($desg_row) ? $desg_row->name : 'N/A';
     
                           $this->db->where('id',$this->data['doc_det']->specialisation);
-    $this->data['spcl'] = $this->db->get('specialisation')->row()->name;   
+        $spcl_row = $this->db->get('specialisation')->row();
+        $this->data['spcl'] = !empty($spcl_row) ? $spcl_row->name : 'N/A';
+    } else {
+        $this->data['desg'] = 'N/A';
+        $this->data['spcl'] = 'N/A';
+    }
     
     // print_r($this->data['desg']);die;  
     
@@ -98,7 +109,7 @@ class Doctor_payments extends MY_Controller {
     
   
                           
-                                   $this->db->where('patient_prescription_id',$this->data['epresp']->id);
+                                   $this->db->where('patient_prescription_id', !empty($this->data['epresp']) ? $this->data['epresp']->id : 0);
     $this->data['eprescription'] = $this->db->get('eprescription')->result();
 
         $base_path = str_replace("system", "vendor", BASEPATH);
