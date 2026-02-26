@@ -1,13 +1,51 @@
-/application/config/database.php
-/check_*.php
-/create_test_sub.php
-/get_plans_data.php
-/get_doctor_plans.php
-/update_plans_table.php
-/add_type_column.php
-/merge_plans.php
-/test_sessions.php
-/application/logs/*
-/vendor/
+# ============================================================
+# CodeIgniter .gitignore
+# ============================================================
+
+# ----- CI Sessions -----
+application/sessions/
+
+# ----- CI Logs -----
+application/logs/*
+!application/logs/index.html
+!application/logs/.gitkeep
+
+# ----- CI Cache -----
+application/cache/*
+!application/cache/index.html
+!application/cache/.gitkeep
+
+# ----- CI Config (sensitive) -----
+# Uncomment if you want to protect your database config:
+# application/config/database.php
+
+# ----- Composer vendor (if using Composer separately) -----
+# vendor/
+# If you want to ignore only the mpdf vendor cache:
+application/libraries/vendor/mpdf/mpdf/tmp/
+application/libraries/vendor/mpdf/mpdf/ttfontdata/
+
+# ----- PHP uploads / temp files -----
+uploads/
+tmp/
 *.log
+
+# ----- OS junk -----
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 .DS_Store
+._*
+
+# ----- IDE / Editor -----
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+nbproject/
+
+# ----- Node (if any) -----
+node_modules/
+npm-debug.log*
+
+# ============================================================
