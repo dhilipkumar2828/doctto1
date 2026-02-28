@@ -101,51 +101,27 @@ define('DEFAULT_IMAGE_PATH', $url . "uploads/products/default.png");
 define('PRODUCTS_PATH', $url . "uploads/products/default.png");
 define('RAND', rand(1000,10000)); 
 
-// PhonePe WebView Configuration (Legacy)
-define("PAY_URL", "https://api.phonepe.com/apis/hermes/pg/v1/pay"); //for live
-define("API_END_POINT", "/pg/v1/pay");
-define("MERCHANT_ID", 'M1Y5YWMA86HR'); 
-define("SALT_KEY", '168028f5-f3cf-40e3-a320-120926e1dcfb');
-define("KEY_INDEX", 1);
+// --- PhonePe V2 (Standard Checkout) Integration ---
 
-// PhonePe SDK Configuration (Legacy - for WebView)
-define("PHONEPE_SDK_MERCHANT_ID", 'M1Y5YWMA86HR'); 
-define("PHONEPE_SDK_SALT_KEY", '168028f5-f3cf-40e3-a320-120926e1dcfb');
-define("PHONEPE_SDK_SALT_INDEX", 1);
-define("PHONEPE_SDK_ENVIRONMENT", 'PRODUCTION'); // or 'SANDBOX' for testing
-define("PHONEPE_SDK_BASE_URL", 'https://api.phonepe.com/apis/pg-sandbox');   
+// Mode: 'UAT' for testing, 'PROD' for live
+define("PHONEPE_MODE", 'PROD'); 
 
-// --- PhonePe Hermes (Standard Checkout) Integration ---
+// Production Credentials
+define("PHONEPE_PROD_CLIENT_ID", 'SU2510281348268224659678');
+define("PHONEPE_PROD_CLIENT_SECRET", 'd8ff0940-f6ce-4cd4-8e68-d37639800639');
+define("PHONEPE_PROD_CLIENT_VERSION", 1);
 
-// UAT (Testing) Credentials
-define("PHONEPE_HERMES_UAT_MERCHANT_ID", 'PGTESTPAYUAT86'); 
-define("PHONEPE_HERMES_UAT_SALT_KEY", '96434309-7796-489d-8924-ab56988a6076');
-define("PHONEPE_HERMES_UAT_SALT_INDEX", 1);
-define("PHONEPE_HERMES_UAT_URL", 'https://api-preprod.phonepe.com/apis/pg-sandbox/pg/v1/pay');
+// Test (UAT) Credentials
+define("PHONEPE_UAT_CLIENT_ID", 'M1Y5YWMA86HR_26022011411');
+define("PHONEPE_UAT_CLIENT_SECRET", 'YTE4N2E5NzQtNTlmMi00MDQ3LTljNTVmMTYtNjMyNzTQ1');
+define("PHONEPE_UAT_CLIENT_VERSION", 1);
 
-// PROD (Live) Credentials
-define("PHONEPE_HERMES_PROD_MERCHANT_ID", 'SU2510281348268224659678');
-define("PHONEPE_HERMES_PROD_SALT_KEY", 'd8ff0940-f6ce-4cd4-8e68-d37639800639');
-define("PHONEPE_HERMES_PROD_SALT_INDEX", 1);
-define("PHONEPE_HERMES_PROD_URL", 'https://api.phonepe.com/apis/hermes/pg/v1/pay');
+// Base URLs
+define("PHONEPE_PROD_URL", 'https://api.phonepe.com/apis/hermes');
+define("PHONEPE_UAT_URL", 'https://api-preprod.phonepe.com/apis/pg-sandbox');
 
-// Current Mode
-define("PHONEPE_HERMES_MODE", 'UAT'); // LIVE Production Mode - Real transactions
-
-// PhonePe Production Configuration
-define("PHONEPE_CLIENT_ID", 'M1Y5YWMA86HR'); // Production Client ID
-define("PHONEPE_CLIENT_SECRET", '168028f5-f3cf-40e3-a320-120926e1dcfb'); // Production Client Secret
-define("PHONEPE_CLIENT_VERSION", '1.0');
-define("PHONEPE_ENVIRONMENT", 'PRODUCTION'); // Production environment
-
-// PhonePe Production Configuration for Doctor Subscriptions
-define("PHONEPE_BASE_URL", 'https://api.phonepe.com/apis/hermes');
-define("PHONEPE_MERCHANT_ID", 'M1Y5YWMA86HR'); // Production Merchant ID
-define("PHONEPE_SALT_KEY", '168028f5-f3cf-40e3-a320-120926e1dcfb'); // Production Salt Key
-define("PHONEPE_SALT_INDEX", 1);
-
-// PhonePe Webhook Configuration (Standard Checkout)
-// These credentials must match the configuration in PhonePe Business Dashboard
-define("PHONEPE_WEBHOOK_USERNAME", 'doctto_webhook_user'); // Webhook username (configured in PhonePe Dashboard)
-define("PHONEPE_WEBHOOK_PASSWORD", 'Doctto2026'); // Webhook password (configured in PhonePe Dashboard)
-
+// Helper for current environment
+define("PHONEPE_CLIENT_ID", (PHONEPE_MODE == 'PROD') ? PHONEPE_PROD_CLIENT_ID : PHONEPE_UAT_CLIENT_ID);
+define("PHONEPE_CLIENT_SECRET", (PHONEPE_MODE == 'PROD') ? PHONEPE_PROD_CLIENT_SECRET : PHONEPE_UAT_CLIENT_SECRET);
+define("PHONEPE_CLIENT_VERSION", (PHONEPE_MODE == 'PROD') ? PHONEPE_PROD_CLIENT_VERSION : PHONEPE_UAT_CLIENT_VERSION);
+define("PHONEPE_BASE_URL", (PHONEPE_MODE == 'PROD') ? PHONEPE_PROD_URL : PHONEPE_UAT_URL);

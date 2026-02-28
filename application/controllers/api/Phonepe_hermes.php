@@ -2,7 +2,13 @@
 if (!defined('BASEPATH')) exit('No direct script access allowed');
 
 require APPPATH . '/libraries/REST_Controller.php';
+// Load the PhonePe SDK via Composer Autoloader
+require_once FCPATH . 'vendor/autoload.php';
+
 use Restserver\Libraries\REST_Controller;
+use PhonePe\payments\v2\standardCheckout\StandardCheckoutClient;
+use PhonePe\payments\v2\models\request\builders\StandardCheckoutPayRequestBuilder;
+use PhonePe\Env;
 
 /**
  * @property Subscription_api_model $subscription_api_model
@@ -14,16 +20,22 @@ use Restserver\Libraries\REST_Controller;
 class Phonepe_hermes extends REST_Controller {
 
     public function __construct() {
+        // Required security headers as per PhonePe MOM
+        header('Referrer-Policy: strict-origin-when-cross-origin');
+        header('Cross-Origin-Opener-Policy: same-origin');
+        
+        // CORS headers
         header('Access-Control-Allow-Origin: *');
         header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
         header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+
         parent::__construct();
         $this->load->model('subscription_api_model');
         $this->load->model('common_model');
     }
 
     /**
-     * Step 1: Initiate Payment
+     * Step 1: Initiate Payment (V2 Standard Checkout)
      * Params: user_id, plan_id, type (doctor/customer), mobile
      */
     public function initiate_payment_post() {
@@ -67,176 +79,158 @@ class Phonepe_hermes extends REST_Controller {
             'merchant_transaction_id' => $merchant_transaction_id,
             'amount' => $amount,
             'payment_status' => 'pending',
-            'provider' => 'phonepe',
+            'provider' => 'phonepe_v2',
             'created_at' => date('Y-m-d H:i:s')
         ];
         $this->db->insert('payment_logs', $log_data);
 
-        // 4. Prepare PhonePe Payload
-        $merchant_id = (PHONEPE_HERMES_MODE == 'PROD') ? PHONEPE_HERMES_PROD_MERCHANT_ID : PHONEPE_HERMES_UAT_MERCHANT_ID;
-        $salt_key = (PHONEPE_HERMES_MODE == 'PROD') ? PHONEPE_HERMES_PROD_SALT_KEY : PHONEPE_HERMES_UAT_SALT_KEY;
-        $salt_index = (PHONEPE_HERMES_MODE == 'PROD') ? PHONEPE_HERMES_PROD_SALT_INDEX : PHONEPE_HERMES_UAT_SALT_INDEX;
-        $base_url = (PHONEPE_HERMES_MODE == 'PROD') ? PHONEPE_HERMES_PROD_URL : PHONEPE_HERMES_UAT_URL;
+        try {
+            // 4. Initialize PhonePe V2 Client
+            $clientId = (string)PHONEPE_CLIENT_ID;
+            $clientSecret = (string)PHONEPE_CLIENT_SECRET;
+            $clientVersion = (int)PHONEPE_CLIENT_VERSION;
+            $envString = (PHONEPE_MODE == 'PROD') ? Env::PRODUCTION : Env::UAT;
 
-        // Custom callback URL from post if provided
-        $custom_callback = $this->post('callback_url');
-        $callback_url = $custom_callback ? $custom_callback : base_url('api/phonepe_hermes/callback'); 
-        $redirect_url = base_url('api/phonepe_hermes/verify_payment/' . $merchant_transaction_id);
+            $client = StandardCheckoutClient::getInstance($clientId, $clientVersion, $clientSecret, $envString);
 
-        $payload = [
-            'merchantId' => $merchant_id,
-            'merchantTransactionId' => $merchant_transaction_id,
-            'merchantUserId' => 'MUID' . $user_id,
-            'amount' => $amount_in_paise,
-            'redirectUrl' => $redirect_url,
-            'redirectMode' => 'REDIRECT',
-            'callbackUrl' => $callback_url,
-            'mobileNumber' => $mobile ?? '9999999999',
-            'paymentInstrument' => [
-                'type' => 'PAY_PAGE'
-            ]
-        ];
+            // 5. Prepare Redirect & Callback URLs
+            $redirect_url = base_url('api/phonepe_hermes/redirect?mtid=' . $merchant_transaction_id);
 
-        $encode = base64_encode(json_encode($payload));
-        $string = $encode . '/pg/v1/pay' . $salt_key;
-        $sha256 = hash("sha256", $string); // standard is lowercase hex
-        $final_x_header = $sha256 . '###' . $salt_index;
+            // 6. Build Request Payload using SDK Builder
+            $payRequest = StandardCheckoutPayRequestBuilder::builder()
+                ->merchantOrderId($merchant_transaction_id)
+                ->amount($amount_in_paise)
+                ->message("Payment for {$type} subscription")
+                ->redirectUrl($redirect_url)
+                ->udf1((string)$user_id)
+                ->udf2((string)$type)
+                ->udf3((string)$plan_id)
+                ->build();
 
-        $request_payload = json_encode(['request' => $encode]);
+            // 7. Call PhonePe Pay API
+            $response = $client->pay($payRequest);
 
-        // Update log
-        $this->db->where('merchant_transaction_id', $merchant_transaction_id);
-        $this->db->update('payment_logs', [
-            'request_payload' => $request_payload
-        ]);
+            // Update log with initiation response
+            $this->db->where('merchant_transaction_id', $merchant_transaction_id);
+            $this->db->update('payment_logs', [
+                'request_payload' => json_encode($payRequest),
+                'response_payload' => json_encode($response)
+            ]);
 
-        $curl = curl_init();
-        curl_setopt_array($curl, [
-            CURLOPT_URL => $base_url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CUSTOMREQUEST => "POST",
-            CURLOPT_POSTFIELDS => $request_payload,
-            CURLOPT_HTTPHEADER => [
-                "Content-Type: application/json",
-                "X-VERIFY: " . $final_x_header,
-                "accept: application/json"
-            ],
-        ]);
-
-        $response = curl_exec($curl);
-        $err = curl_error($curl);
-        curl_close($curl);
-
-        // Update response in log
-        $this->db->where('merchant_transaction_id', $merchant_transaction_id);
-        $this->db->update('payment_logs', ['response_payload' => $response]);
-
-        if ($err) {
-            $this->response(['status' => 'error', 'message' => 'Curl error: ' . $err], REST_Controller::HTTP_OK);
-        } else {
-            $res = json_decode($response);
-            if (isset($res->success) && $res->success == true) {
-                $pay_url = $res->data->instrumentResponse->redirectInfo->url;
+            if ($response && method_exists($response, 'getRedirectUrl') && $response->getRedirectUrl()) {
                 $this->response([
                     'status' => 'success',
                     'message' => 'Payment initiated',
-                    'payment_url' => $pay_url,
-                    'callback_url' => $callback_url,
+                    'payment_url' => $response->getRedirectUrl(),
                     'redirect_url' => $redirect_url,
                     'merchantTransactionId' => $merchant_transaction_id
                 ], REST_Controller::HTTP_OK);
             } else {
                 $this->response([
                     'status' => 'error',
-                    'message' => 'PhonePe initiation failed',
-                    'details' => $res
+                    'message' => 'Invalid response from PhonePe',
+                    'details' => json_encode($response)
                 ], REST_Controller::HTTP_OK);
             }
+
+        } catch (Throwable $e) {
+            $this->response([
+                'status' => 'error',
+                'message' => 'PhonePe V2 Error: ' . $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ], REST_Controller::HTTP_OK);
         }
     }
 
     /**
-     * Optional: Initiate via GET for testing/link clicking
-     * URL: api/phonepe_hermes/pay?user_id=1&plan_id=5&type=doctor&mobile=9999999999
+     * Legacy Alias for pay_get
      */
     public function pay_get() {
         $_POST['user_id'] = $this->get('user_id');
         $_POST['plan_id'] = $this->get('plan_id');
         $_POST['type'] = $this->get('type');
         $_POST['mobile'] = $this->get('mobile');
-        
-        // Call the post method logic
         $this->initiate_payment_post();
     }
 
     /**
-     * Webhook Callback from PhonePe
+     * Verify Payment and get JSON Response
+     * URL: api/phonepe_hermes/verify_payment?mtid=MTID123
      */
-    public function callback_post() {
-        $response = file_get_contents('php://input');
-        $headers = $this->input->request_headers();
-        $x_verify = isset($headers['X-VERIFY']) ? $headers['X-VERIFY'] : (isset($headers['x-verify']) ? $headers['x-verify'] : '');
-
-        // Verify Hash (Recommended)
-        // ... (Skipping for now to ensure delivery, but good for security)
-
-        $decoded_response = json_decode($response);
-        if (isset($decoded_response->response)) {
-            $final_data = json_decode(base64_decode($decoded_response->response));
-            
-            $mtid = $final_data->data->merchantTransactionId;
-            $code = $final_data->code; // PAYMENT_SUCCESS, PAYMENT_ERROR etc
-
-            // Update log
-            $update_data = [
-                'response_payload' => base64_decode($decoded_response->response),
-                'payment_status' => ($code == 'PAYMENT_SUCCESS') ? 'success' : 'failed'
-            ];
-            $this->db->where('merchant_transaction_id', $mtid);
-            $this->db->update('payment_logs', $update_data);
-
-            // If success, activate subscription
-            if ($code == 'PAYMENT_SUCCESS') {
-                $this->activate_user_subscription($mtid);
-            }
-        }
+    public function verify_payment_get($mtid = null) {
+        if (!$mtid) $mtid = $this->get('mtid');
         
-        // Return 200 to PhonePe
-        $this->output->set_status_header(200);
-        echo json_encode(['status' => 'received']);
-    }
-
-    /**
-     * Redirect after payment (Frontend usually hits this)
-     */
-    public function redirect_get() {
-        $mtid = $this->get('mtid');
         if (!$mtid) {
-            echo "<h1>Invalid Transaction</h1>";
+            $this->response(['status' => 'error', 'message' => 'MTID required'], REST_Controller::HTTP_OK);
             return;
         }
 
-        // Proactively check status from PhonePe (Useful for Localhost testing where webhook fails)
+        // Fresh check from PhonePe status API
+        $this->verify_and_update_status($mtid);
+
+        $this->db->where('merchant_transaction_id', $mtid);
+        $log = $this->db->get('payment_logs')->row();
+
+        if ($log) {
+            $this->response([
+                'status' => 'success',
+                'payment_status' => $log->payment_status,
+                'merchantTransactionId' => $mtid,
+                'user_id' => $log->user_id,
+                'plan_id' => $log->plan_id,
+                'amount' => $log->amount,
+                'type' => $log->type
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response(['status' => 'error', 'message' => 'Transaction not found'], REST_Controller::HTTP_OK);
+        }
+    }
+
+    /**
+     * Redirect after payment (PhonePe sends user here)
+     * URL: api/phonepe_hermes/redirect?mtid=MTID123
+     */
+    public function redirect_get() {
+        $mtid = $this->get('mtid');
+        $show_ui = $this->get('ui'); // Optional query param to show HTML UI
+
+        if (!$mtid) {
+            if (!$show_ui) {
+                $this->response(['status' => 'error', 'message' => 'Invalid Transaction'], REST_Controller::HTTP_OK);
+            } else {
+                echo "<h1>Invalid Transaction</h1>";
+            }
+            return;
+        }
+
+        // Proactively verify status from PhonePe
         $this->verify_and_update_status($mtid);
         
         $this->db->where('merchant_transaction_id', $mtid);
         $log = $this->db->get('payment_logs')->row();
 
+        // Default to JSON for App integration
+        if (!$show_ui) {
+            $this->verify_payment_get($mtid);
+            return;
+        }
+
         if ($log && $log->payment_status == 'success') {
             $app_redirect_url = "doctto://payment?status=success&mtid=" . $mtid;
             echo "<div style='text-align:center;margin-top:50px;font-family:sans-serif;'>
                     <h1 style='color:green;'>Payment Successful! ✅</h1>
-                    <p>Transaction ID: <b>$mtid</b></p>
+                    <p>Transaction ID: $mtid</p>
                     <p>Your subscription has been activated.</p>
                     <p style='color:#666;'>Redirecting back to app in 3 seconds...</p>
-                    <div style='margin-top:20px;'>
-                        <a href='$app_redirect_url' style='padding:12px 25px;background:deeppink;color:white;text-decoration:none;border-radius:5px;font-weight:bold;'>Open App Now</a>
-                    </div>
                     <script>
                         setTimeout(function(){
                             window.location.href = '$app_redirect_url';
                         }, 3000);
                     </script>
+                    <div style='margin-top:20px;'>
+                        <a href='$app_redirect_url' style='padding:12px 25px;background:deeppink;color:white;text-decoration:none;border-radius:5px;font-weight:bold;'>Open App Now</a>
+                    </div>
                   </div>";
         } else {
             $app_fail_url = "doctto://payment?status=failed&mtid=" . $mtid;
@@ -245,83 +239,73 @@ class Phonepe_hermes extends REST_Controller {
                     <p>Transaction ID: $mtid</p>
                     <p>Status: " . ($log->payment_status ?? 'Unknown') . "</p>
                     <p>Redirecting back to app in 3 seconds...</p>
-                    <div style='margin-top:20px;'>
-                        <a href='$app_fail_url' style='padding:12px 25px;background:#666;color:white;text-decoration:none;border-radius:5px;font-weight:bold;'>Back to App</a>
-                    </div>
                     <script>
                         setTimeout(function(){
                             window.location.href = '$app_fail_url';
                         }, 3000);
                     </script>
+                    <div style='margin-top:20px;'>
+                        <a href='$app_fail_url' style='padding:12px 25px;background:#666;color:white;text-decoration:none;border-radius:5px;font-weight:bold;'>Back to App</a>
+                    </div>
                   </div>";
         }
     }
 
     /**
-     * Proactive status verification
+     * Proactive status verification using V2 SDK
      */
     private function verify_and_update_status($mtid) {
-        $merchant_id = (PHONEPE_HERMES_MODE == 'PROD') ? PHONEPE_HERMES_PROD_MERCHANT_ID : PHONEPE_HERMES_UAT_MERCHANT_ID;
-        $salt_key = (PHONEPE_HERMES_MODE == 'PROD') ? PHONEPE_HERMES_PROD_SALT_KEY : PHONEPE_HERMES_UAT_SALT_KEY;
-        $salt_index = (PHONEPE_HERMES_MODE == 'PROD') ? PHONEPE_HERMES_PROD_SALT_INDEX : PHONEPE_HERMES_UAT_SALT_INDEX;
-        
-        // Final Status URL (Note: hermes uses status/merchantId/mtid)
-        $status_url = (PHONEPE_HERMES_MODE == 'PROD') 
-            ? "https://api.phonepe.com/apis/hermes/pg/v1/status/$merchant_id/$mtid"
-            : "https://api-preprod.phonepe.com/apis/pg-sandbox/pg/v1/status/$merchant_id/$mtid";
+        try {
+            $clientId = PHONEPE_CLIENT_ID;
+            $clientSecret = PHONEPE_CLIENT_SECRET;
+            $clientVersion = PHONEPE_CLIENT_VERSION;
+            $envString = (PHONEPE_MODE == 'PROD') ? Env::PRODUCTION : Env::UAT;
 
-        $string = "/pg/v1/status/$merchant_id/$mtid" . $salt_key;
-        $sha256 = hash("sha256", $string);
-        $final_x_header = $sha256 . '###' . $salt_index;
-
-        $curl = curl_init();
-        curl_setopt_array($curl, [
-            CURLOPT_URL => $status_url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CUSTOMREQUEST => "GET",
-            CURLOPT_HTTPHEADER => [
-                "Content-Type: application/json",
-                "X-VERIFY: " . $final_x_header,
-                "X-MERCHANT-ID: " . $merchant_id,
-                "accept: application/json"
-            ],
-        ]);
-
-        $response = curl_exec($curl);
-        curl_close($curl);
-        $res = json_decode($response);
-
-        if (isset($res->code) && $res->code == 'PAYMENT_SUCCESS') {
-            // Update DB
-            $this->db->where('merchant_transaction_id', $mtid);
-            $this->db->update('payment_logs', [
-                'payment_status' => 'success',
-                'response_payload' => $response
-            ]);
+            $client = StandardCheckoutClient::getInstance($clientId, $clientVersion, $clientSecret, $envString);
             
-            // Activate
-            $this->activate_user_subscription($mtid);
-            return true;
-        } else if (isset($res->code)) {
-            $this->db->where('merchant_transaction_id', $mtid);
-            $this->db->update('payment_logs', [
-                'payment_status' => ($res->code == 'PAYMENT_PENDING') ? 'pending' : 'failed',
-                'response_payload' => $response
-            ]);
+            // Get status (withDetails = true)
+            $res = $client->getOrderStatus($mtid, true);
+
+            if ($res && $res->getState() == 'COMPLETED') {
+                // Update DB
+                $this->db->where('merchant_transaction_id', $mtid);
+                $this->db->update('payment_logs', [
+                    'payment_status' => 'success',
+                    'response_payload' => json_encode($res)
+                ]);
+                
+                // Activate Subscription
+                $this->activate_user_subscription($mtid);
+                return true;
+            } else if ($res) {
+                $status = 'failed';
+                if ($res->getState() == 'PENDING') {
+                    $status = 'pending';
+                }
+                
+                $this->db->where('merchant_transaction_id', $mtid);
+                $this->db->update('payment_logs', [
+                    'payment_status' => $status,
+                    'response_payload' => json_encode($res)
+                ]);
+            }
+        } catch (Exception $e) {
+            // Log error silently for this internal helper
+            return false;
         }
         return false;
     }
 
     /**
-     * Internal activation logic
+     * Internal activation logic (Preserved from old version)
      */
     private function activate_user_subscription($mtid) {
         $this->db->where('merchant_transaction_id', $mtid);
         $log = $this->db->get('payment_logs')->row();
 
-        if ($log && $log->payment_status == 'success') {
-            // Check if already activated (prevent double activation)
-            // ...
+        if ($log && ($log->payment_status == 'success' || $log->payment_status == 'COMPLETED')) {
+            // Double check if already activated in common_model or similar logic
+            // (Assuming buy_subscription handles basic checking)
 
             $plan = $this->subscription_api_model->get_plan_details($log->plan_id);
             if ($plan) {
@@ -345,7 +329,7 @@ class Phonepe_hermes extends REST_Controller {
     }
 
     /**
-     * Check status manually (can be called by frontend)
+     * Standard status check API for frontend
      */
     public function status_post() {
         $mtid = $this->post('merchantTransactionId');
@@ -353,6 +337,9 @@ class Phonepe_hermes extends REST_Controller {
             $this->response(['status' => 'error', 'message' => 'MTID required'], REST_Controller::HTTP_OK);
             return;
         }
+
+        // Sync with PhonePe
+        $this->verify_and_update_status($mtid);
 
         $this->db->where('merchant_transaction_id', $mtid);
         $log = $this->db->get('payment_logs')->row();
@@ -369,30 +356,21 @@ class Phonepe_hermes extends REST_Controller {
     }
 
     /**
-     * Verify payment status via GET
-     * URL: api/phonepe_hermes/verify_payment/MTID12345
+     * Webhook Callback from PhonePe (Optional for V2 Standard, but good to have)
      */
-    public function verify_payment_get($mtid = null) {
-        if (!$mtid) {
-            $this->response(['status' => 'error', 'message' => 'MTID required'], REST_Controller::HTTP_OK);
-            return;
+    public function callback_post() {
+        // Implementation for V2 Webhook verification if needed
+        // For now, we rely on proactive status check during redirect for better reliability in development
+        $responseBody = file_get_contents('php://input');
+        
+        // Update log with webhook body
+        $data = json_decode($responseBody);
+        if (isset($data->orderId)) {
+             $this->verify_and_update_status($data->orderId);
         }
-
-        // Fresh check from PhonePe status API
-        $this->verify_and_update_status($mtid);
-
-        $this->db->where('merchant_transaction_id', $mtid);
-        $log = $this->db->get('payment_logs')->row();
-
-        if ($log) {
-            $this->response([
-                'status' => 'success',
-                'payment_status' => $log->payment_status,
-                'merchantTransactionId' => $mtid,
-                'data' => $log
-            ], REST_Controller::HTTP_OK);
-        } else {
-            $this->response(['status' => 'error', 'message' => 'Transaction not found'], REST_Controller::HTTP_OK);
-        }
+        
+        $this->output->set_status_header(200);
+        echo json_encode(['status' => 'received']);
     }
 }
+
