@@ -1,6 +1,15 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
+// Load the PhonePe SDK via Composer Autoloader
+require_once FCPATH . 'vendor/autoload.php';
+
+/**
+ * @property CI_DB_query_builder $db
+ * @property CI_Loader $load
+ * @property Doctors_model $Doctors_model
+ * @property CI_Email $email
+ */
 class Subscription_renewal_cron extends CI_Controller {
 
     public function __construct() {
@@ -110,37 +119,117 @@ class Subscription_renewal_cron extends CI_Controller {
      * Process PhonePe autopay renewal
      */
     private function process_phonepe_autopay_renewal($subscription) {
-        // PhonePe autopay implementation
         $agreement_id = $subscription['autopay_agreement_id'];
-        
-        // Create renewal payment record
+        $merchant_order_id = 'REN' . time() . rand(100, 999);
+        $amount_in_paise = intval($subscription['plan_price'] * 100);
+
+        log_message('info', "Initiating PhonePe Recurring Debit for Sub: {$subscription['id']}, Order: {$merchant_order_id}");
+
+        // Create renewal payment record first (pending)
         $payment_data = [
             'doctor_id' => $subscription['doctor_id'],
             'subscription_id' => $subscription['id'],
             'amount' => $subscription['plan_price'],
             'payment_gateway' => 'phonepe',
             'payment_status' => 'pending',
+            'transaction_id' => $merchant_order_id,
             'is_renewal' => 1,
             'created_at' => date('Y-m-d H:i:s')
         ];
-        
         $this->db->insert('doctor_subscription_payments', $payment_data);
         $payment_id = $this->db->insert_id();
-        
-        // Create renewal record
-        $renewal_data = [
-            'subscription_id' => $subscription['id'],
-            'doctor_id' => $subscription['doctor_id'],
-            'renewal_date' => date('Y-m-d H:i:s'),
-            'payment_id' => $payment_id,
-            'amount' => $subscription['plan_price'],
-            'status' => 'pending',
-            'created_at' => date('Y-m-d H:i:s')
-        ];
-        
-        $this->db->insert('subscription_renewals', $renewal_data);
-        
-        log_message('info', 'PhonePe autopay renewal initiated for subscription ' . $subscription['id']);
+
+        try {
+            // Use Client ID/Secret from constants
+            $clientId = (string)PHONEPE_CLIENT_ID;
+            $clientSecret = (string)PHONEPE_CLIENT_SECRET;
+            $clientVersion = (int)PHONEPE_CLIENT_VERSION;
+            $envString = (PHONEPE_MODE == 'PROD') ? \PhonePe\Env::PRODUCTION : \PhonePe\Env::UAT;
+
+            // Manual token fetch for the backend call
+            $token_url = (\PhonePe\Env::getBaseUrlForOAuth($envString)) . '/identity-manager/v1/oauth/token';
+            $token_payload = http_build_query([
+                'client_id' => $clientId,
+                'client_version' => $clientVersion,
+                'client_secret' => $clientSecret,
+                'grant_type' => 'client_credentials'
+            ]);
+            
+            $ch = curl_init($token_url);
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $token_payload);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/x-www-form-urlencoded']);
+            $token_res = curl_exec($ch);
+            $token_data = json_decode($token_res);
+            curl_close($ch);
+
+            if (!isset($token_data->access_token)) {
+                throw new Exception("Failed to get PhonePe access token: " . $token_res);
+            }
+
+            $access_token = $token_data->access_token;
+            
+            // Recurring Debit API V2
+            // Endpoint: /recurring/v2/debit
+            $recurring_url = (\PhonePe\Env::getBaseUrl($envString)) . '/recurring/v2/debit';
+            
+            $debit_payload = json_encode([
+                'merchantOrderId' => $merchant_order_id,
+                'amount' => $amount_in_paise,
+                'subscriptionId' => $agreement_id,
+                'metaInfo' => [
+                    'udf1' => (string)$subscription['doctor_id'],
+                    'udf2' => 'RENEWAL',
+                    'udf3' => (string)$subscription['id']
+                ]
+            ]);
+
+            $ch = curl_init($recurring_url);
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $debit_payload);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Authorization: Bearer ' . $access_token,
+                'Content-Type: application/json'
+            ]);
+            $response = curl_exec($ch);
+            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            $res_data = json_decode($response);
+            
+            if ($http_code == 200 && isset($res_data->state) && ($res_data->state == 'COMPLETED' || $res_data->state == 'SUCCESS')) {
+                // Success
+                $this->db->where('id', $payment_id);
+                $this->db->update('doctor_subscription_payments', ['payment_status' => 'success', 'phonepe_transaction_id' => $res_data->orderId ?? '']);
+                
+                // Update subscription expiry
+                $this->extend_subscription($subscription);
+                
+                log_message('info', "PhonePe AutoPay Success for Sub: {$subscription['id']}");
+            } else {
+                // Failed or Pending
+                $this->db->where('id', $payment_id);
+                $this->db->update('doctor_subscription_payments', ['payment_status' => 'failed', 'error_message' => $response]);
+                
+                log_message('error', "PhonePe AutoPay Failed for Sub: {$subscription['id']}. Response: " . $response);
+            }
+
+        } catch (Exception $e) {
+            log_message('error', "PhonePe AutoPay Exception for Sub: {$subscription['id']}: " . $e->getMessage());
+            $this->db->where('id', $payment_id);
+            $this->db->update('doctor_subscription_payments', ['payment_status' => 'failed', 'error_message' => $e->getMessage()]);
+        }
+    }
+
+    private function extend_subscription($subscription) {
+        $new_end_at = date('Y-m-d H:i:s', strtotime($subscription['end_at'] . " + {$subscription['duration_days']} days"));
+        $this->db->where('id', $subscription['id']);
+        $this->db->update('doctor_subscriptions', [
+            'end_at' => $new_end_at,
+            'updated_at' => date('Y-m-d H:i:s')
+        ]);
     }
 
     /**

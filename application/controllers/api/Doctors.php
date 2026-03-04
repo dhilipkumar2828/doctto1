@@ -3,7 +3,19 @@ if (!defined('BASEPATH')) exit('No direct script access allowed');
 
 //include Rest Controller library
 require APPPATH . '/libraries/REST_Controller.php';
+// Load the PhonePe SDK via Composer Autoloader
+require_once FCPATH . 'vendor/autoload.php';
+
 use Restserver\Libraries\REST_Controller;
+use PhonePe\payments\v2\standardCheckout\StandardCheckoutClient;
+use PhonePe\payments\v2\models\request\builders\StandardCheckoutPayRequestBuilder;
+use PhonePe\Env;
+
+/**
+ * @property Doctors_model $Doctors_model
+ * @property CI_DB_query_builder $db
+ * @property CI_Input $input
+ */
 class Doctors extends REST_Controller {
 
     public function __construct() 
@@ -398,24 +410,135 @@ parent::__construct();
           }
     }
 
-     function initiate_phonephe_payment_post()
+    function initiate_phonephe_payment_post()
     {
+        $total_amount = $this->post('consultation_fee');
+        $patient_id = $this->post('patient_id');
+        $doctor_id = $this->post('doctor_id');
+        $date = $this->post('date');
+        $time_slot_name = $this->post('time_slot_name');
+        $time_slot_value = $this->post('time_slot_value');
+        $patient_name = $this->post('patient_name');
+        $patient_mobile = $this->post('patient_mobile');
+        $patient_age = $this->post('patient_age');
+        $patient_gender = $this->post('patient_gender');
+        $patient_visiting_purpose = $this->post('patient_visiting_purpose');
+        $type = $this->post('appointment_type');
 
-      $total_amount = $this->post('consultation_fee');
-      $patient_id = $this->input->post('patient_id');
-      $doctor_id = $this->input->post('doctor_id');
-      $date = $this->input->post('date');
-      $time_slot_name = $this->input->post('time_slot_name');
-      $time_slot_value = $this->input->post('time_slot_value');
-      $patient_name = $this->input->post('patient_name');
-      $patient_mobile = $this->input->post('patient_mobile');
-      $patient_age = $this->input->post('patient_age');
-      $patient_gender = $this->input->post('patient_gender');
-      $patient_visiting_purpose = $this->input->post('patient_visiting_purpose');
-       $type = $this->input->post('appointment_type');
+        
+        // 0. Check for slot availability
+        $this->db->where('date', $date);
+        $this->db->where('time_slot_name', $time_slot_name);
+        $this->db->where('time_slot_value', $time_slot_value);
+        $this->db->where('doctor_id', $doctor_id);
+        $this->db->where('doctor_status !=', 'reject');
+        $existing = $this->db->get("doctor_appointments")->row();
+        if ($existing) {
+            $this->response(['status' => FALSE, 'message' => 'Slot already Booked'], REST_Controller::HTTP_OK);
+            return;
+        }
      
-      $data = $this->Doctors_model->initiatePhonephePayment($total_amount,$patient_id,$doctor_id,$date,$time_slot_name,$time_slot_value,$patient_name,$patient_mobile,$patient_age,$patient_gender,$patient_visiting_purpose,$type);
-       $this->response($data, REST_Controller::HTTP_OK); 
+        // 1. Create temporary appointment record to get a unique ID
+        $appointment_data = array(
+            'patient_id' => $patient_id,
+            'doctor_id' => $doctor_id,
+            'date' => $date,
+            'time_slot_name' => $time_slot_name,
+            'time_slot_value' => $time_slot_value,
+            'patient_name' => $patient_name,
+            'patient_mobile' => $patient_mobile,
+            'patient_age' => $patient_age,
+            'patient_gender' => $patient_gender,
+            'patient_visiting_purpose' => $patient_visiting_purpose,
+            'consultation_fee' => $total_amount,
+            'type' => $type,
+            'status' => 'pending_payment'
+        );
+
+        $this->db->insert("online_doctor_appointments", $appointment_data);
+        $order_id = $this->db->insert_id();
+
+        if (!$order_id) {
+            $this->response(['status' => 'error', 'message' => 'Failed to create appointment record'], REST_Controller::HTTP_OK);
+            return;
+        }
+
+        $amount_in_paise = intval($total_amount * 100);
+        // Generate a unique transaction ID
+        $merchant_transaction_id = 'APT_' . $order_id . '_' . time();
+
+        // 3. Log the attempt in payment_logs
+        $log_data = [
+            'user_id' => $patient_id,
+            'plan_id' => $order_id, // Store appointment ID in plan_id field for tracking
+            'type' => 'appointment',
+            'merchant_transaction_id' => $merchant_transaction_id,
+            'amount' => $total_amount,
+            'payment_status' => 'pending',
+            'provider' => 'phonepe_v2',
+            'created_at' => date('Y-m-d H:i:s')
+        ];
+        $this->db->insert('payment_logs', $log_data);
+
+        try {
+            $clientId = (string)PHONEPE_CLIENT_ID;
+            $clientSecret = (string)PHONEPE_CLIENT_SECRET;
+            $clientVersion = (int)PHONEPE_CLIENT_VERSION;
+            $envString = (PHONEPE_MODE == 'PROD') ? Env::PRODUCTION : Env::UAT;
+
+            $client = StandardCheckoutClient::getInstance($clientId, $clientVersion, $clientSecret, $envString);
+            
+            // Redirect URL for verification
+            $redirect_url = base_url('api/phonepe_hermes/verify_payment/' . $merchant_transaction_id);
+
+            // 6. Build Request Payload
+            $payRequest = StandardCheckoutPayRequestBuilder::builder()
+                ->merchantOrderId($merchant_transaction_id)
+                ->amount($amount_in_paise)
+                ->message("Appointment Booking Payment")
+                ->redirectUrl($redirect_url)
+                ->udf1((string)$patient_id)
+                ->udf2((string)$type)
+                ->udf3((string)$order_id)
+                ->build();
+
+            // 7. Call PhonePe Pay API
+            $response = $client->pay($payRequest);
+
+            // Update log with initiation response
+            $this->db->where('merchant_transaction_id', $merchant_transaction_id);
+            $this->db->update('payment_logs', [
+                'request_payload' => json_encode($payRequest),
+                'response_payload' => json_encode($response)
+            ]);
+            
+            // Link transaction ID to appointment
+            $this->db->where('id', $order_id);
+            $this->db->update('online_doctor_appointments', ['phonepe_transaction_id' => $merchant_transaction_id]);
+
+            if ($response && method_exists($response, 'getRedirectUrl') && $response->getRedirectUrl()) {
+                $this->response([
+                    'status' => 'success',
+                    'message' => 'Payment initiated',
+                    'payment_url' => $response->getRedirectUrl(),
+                    'redirect_url' => $redirect_url,
+                    'merchantTransactionId' => $merchant_transaction_id,
+                    'appointment_id' => $order_id
+                ], REST_Controller::HTTP_OK);
+            } else {
+                $this->response([
+                    'status' => 'error',
+                    'message' => 'Invalid response from PhonePe',
+                    'details' => json_encode($response)
+                ], REST_Controller::HTTP_OK);
+            }
+
+        } catch (Throwable $e) {
+            $this->response([
+                'status' => 'error',
+                'message' => 'PhonePe V2 Error: ' . $e->getMessage()
+            ], REST_Controller::HTTP_OK);
+        }
     }
 
 
