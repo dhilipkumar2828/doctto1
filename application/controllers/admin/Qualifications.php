@@ -23,7 +23,7 @@ class Qualifications extends CI_Controller {
         $this->data['data'] = $this->db->get("designations")->result();
         
         //print_r($this->data);die;
-        $this->load->view('admin/includes/header', $this->$data);
+        $this->load->view('admin/includes/header', $this->data);
         $this->load->view('admin/qualifications', $this->data);
         $this->load->view('admin/includes/footer', $this->data);
     }

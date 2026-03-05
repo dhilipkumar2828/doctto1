@@ -2,6 +2,7 @@
 <html>
 
     <head>
+        <?php $page_name = isset($page_name) ? $page_name : ''; ?>
 
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -73,6 +74,9 @@
                         </li>
                         <li class="<?= $page_name == 'subscriptions' ? 'active' : '' ?>">
                             <a href="<?= base_url() ?>admin/subscriptions"><i class="fa fa-credit-card"></i> <span class="nav-label">Subscriptions</span></a>
+                        </li>
+                        <li class="<?= $page_name == 'doctor_subscriptions' ? 'active' : '' ?>">
+                            <a href="<?= base_url() ?>admin/doctor_subscriptions"><i class="fa fa-list-alt"></i> <span class="nav-label">Subscription Plans List</span></a>
                         </li>
                         <li>
                             <a href="<?= base_url() ?>admin/loginLogs"><i class="fa fa-users"></i> <span class="nav-label">Admin Login Logs </span></a>
@@ -172,6 +176,8 @@
                                     <li  class="<?=  $page_name == 'doctors_appointment' ? 'active' : '' ?>">
                                         <a href="<?= base_url() ?>admin/doctors_appointments">Doctors Appointment</a>
                                     </li>
+
+
                                     
                                      <li  class="<?=  $page_name == 'doctor_payments' ? 'active' : '' ?>">
                                         <a href="<?= base_url() ?>admin/doctor_payments">Doctors Payments</a>

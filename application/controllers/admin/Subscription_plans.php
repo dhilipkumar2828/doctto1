@@ -170,6 +170,7 @@ class Subscription_plans extends MY_Controller {
         } else {
             $this->session->set_flashdata('error_message', 'Unable to change status');
         }
+        session_write_close();
         redirect('admin/subscription_plans');
     }
 

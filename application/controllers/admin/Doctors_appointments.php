@@ -14,8 +14,8 @@ class Doctors_appointments extends MY_Controller {
             redirect('admin/login');
         }
 
-        $this->load->model('admin/doctors_appointment_model');
-        $this->load->model("admin_model");
+        $this->load->model('admin/Doctors_appointment_model', 'doctors_appointment_model');
+        $this->load->model("Admin_model", "admin_model");
         $this->data['page_name'] = 'Doctors Appoointment';
 
     }
@@ -23,6 +23,8 @@ class Doctors_appointments extends MY_Controller {
     function index() {
         $this->data['page_title'] = 'Doctors Appointment';
         $this->data['page_name'] = 'doctors_appointment';
+        $this->data['start_date'] = '';
+        $this->data['end_date'] = '';
         
         $appointment = $this->doctors_appointment_model->get_appointment();
         
@@ -36,7 +38,41 @@ class Doctors_appointments extends MY_Controller {
         $this->admin_view('doctors_appointments');
     }
     
-    
+    function online() {
+        $this->data['page_title'] = 'Online Appointments';
+        $this->data['page_name'] = 'online_appointments';
+        $this->data['start_date'] = '';
+        $this->data['end_date'] = '';
+        
+        $this->data['appointment'] = $this->doctors_appointment_model->get_online_appointments('completed');
+        
+        // Statistics for online
+        $this->data['completed'] = $this->db->where('payment_status', 'completed')->get('online_doctor_appointments')->num_rows();
+        $this->data['pending'] = $this->db->where('payment_status', 'pending')->get('online_doctor_appointments')->num_rows();
+        $this->data['failed'] = $this->db->where('payment_status', 'failed')->get('online_doctor_appointments')->num_rows();
+
+        $this->admin_view('online_appointments');
+    }
+
+    function search_online() {
+        $start_date = $this->input->post("start_date");
+        $end_date = $this->input->post("end_date");
+       
+        $this->data['start_date'] = $start_date;
+        $this->data['end_date'] = $end_date;
+        $this->data['page_title'] = 'Online Appointments';
+        $this->data['page_name'] = 'online_appointments';
+       
+        $this->data['appointment'] = $this->doctors_appointment_model->search_online($start_date, $end_date);
+        
+        // Statistics for online
+        $this->data['completed'] = $this->db->where('payment_status', 'completed')->get('online_doctor_appointments')->num_rows();
+        $this->data['pending'] = $this->db->where('payment_status', 'pending')->get('online_doctor_appointments')->num_rows();
+        $this->data['failed'] = $this->db->where('payment_status', 'failed')->get('online_doctor_appointments')->num_rows();
+
+        $this->admin_view('online_appointments');
+    }
+
       function doctor_payments() {
           
         $this->data['page_title'] = 'Doctors Payments';
@@ -67,6 +103,8 @@ class Doctors_appointments extends MY_Controller {
     
        function appointment_status() { 
         $this->data['page_title'] = 'Doctors Appointment';
+        $this->data['start_date'] = '';
+        $this->data['end_date'] = '';
         $status = $this->input->get('status');
   
                 if($status=='active'){
@@ -76,8 +114,15 @@ class Doctors_appointments extends MY_Controller {
                     $doc_app_status = $this->db->where('doctor_status','accept')->get('doctor_appointments')->result();
                 }
                 elseif ($status=='completed') {
-                    $doc_app_status = $this->db->where('doctor_status','completed')->get('doctor_appointments')->result();
-                    //echo $this->db->last_query(); die;
+                    $offline = $this->db->where('doctor_status','completed')->get('doctor_appointments')->result_array();
+                    $online = $this->db->select("*, type as appointment_type, payment_status as doctor_status, '' as rejected_by, '' as reason, '' as comments")
+                                       ->where('payment_status', 'completed')
+                                       ->get('online_doctor_appointments')->result_array();
+                    $merged = array_merge($offline, $online);
+                    $doc_app_status = array();
+                    foreach($merged as $row) {
+                        $doc_app_status[] = (object) $row;
+                    }
                 }
                 elseif ($status=='reject') {
                    $doc_app_status = $this->db->where('doctor_status','reject')->get('doctor_appointments')->result();
@@ -270,6 +315,7 @@ class Doctors_appointments extends MY_Controller {
     // $this->data['patient'] = $this->db->get('doctor_appointments')->row();
     
 
+
     
     //                           $this->db->where('appointment_id',$appointment_id);
     //                           $this->db->where('prescription_type','diagnosis');
@@ -403,5 +449,4 @@ class Doctors_appointments extends MY_Controller {
  
 
     }
-
 

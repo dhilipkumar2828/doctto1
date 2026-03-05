@@ -48,64 +48,51 @@ class Doctor_payments extends MY_Controller {
             $this->admin_view('doctor_payments');
     }
     
-     function view_invoice($appointment_id) {
-         
-         
-                        
-    $this->data['tax_details'] = $this->db->get('tax_details')->row();   
-    
-    // print_r($this->data['tax_details']);die; 
+    function view_invoice($appointment_id) {
+        $source = $this->input->get('source');
+        $table = ($source == 'online') ? 'online_doctor_appointments' : 'doctor_appointments';
         
+        $this->data['tax_details'] = $this->db->get('tax_details')->row();   
         
-                            
-                             $this->db->where('id',$appointment_id);
-    $this->data['doctor_id'] = $this->db->get('doctor_appointments')->row();    
-    
-    // print_R( $this->data['doctor_id']);die;
-    
-    if (empty($this->data['doctor_id'])) {
-        show_error('Appointment not found.');
-        return;
-    }
-                             
-                             $this->db->where('id',$this->data['doctor_id']->doctor_id);
-    $this->data['doc_det'] = $this->db->get('doctors')->row();  
-    
-    // print_r($this->data['doc_det']);die;
-    
-    if (!empty($this->data['doc_det'])) {
-                          $this->db->where('id',$this->data['doc_det']->designations);
-        $desg_row = $this->db->get('designations')->row();
-        $this->data['desg'] = !empty($desg_row) ? $desg_row->name : 'N/A';
-    
-                          $this->db->where('id',$this->data['doc_det']->specialisation);
-        $spcl_row = $this->db->get('specialisation')->row();
-        $this->data['spcl'] = !empty($spcl_row) ? $spcl_row->name : 'N/A';
-    } else {
-        $this->data['desg'] = 'N/A';
-        $this->data['spcl'] = 'N/A';
-    }
-    
-    // print_r($this->data['desg']);die;  
-    
-    // print_r($this->data['doc_det']);die;
-    
-                             $this->db->where('id',$appointment_id);
-    $this->data['patient'] = $this->db->get('doctor_appointments')->row();
-    
-
-    
-                               $this->db->where('appointment_id',$appointment_id);
-                               $this->db->where('prescription_type','diagnosis');
-    $this->data['diag'] = $this->db->get('patient_prescription')->row();
-  
-                               $this->db->where('appointment_id',$appointment_id);
-                               $this->db->where('prescription_type','prescription');
-    $this->data['pres'] = $this->db->get('patient_prescription')->row();
-    
-                            $this->db->select('id');
-                            $this->db->where('appointment_id',$appointment_id);
-    $this->data['epresp'] = $this->db->get('patient_prescription')->row(); 
+        $this->db->where('id',$appointment_id);
+        $this->data['doctor_id'] = $this->db->get($table)->row();    
+        
+        if (empty($this->data['doctor_id'])) {
+            show_error('Appointment not found.');
+            return;
+        }
+                                 
+        $this->db->where('id',$this->data['doctor_id']->doctor_id);
+        $this->data['doc_det'] = $this->db->get('doctors')->row();  
+        
+        if (!empty($this->data['doc_det'])) {
+            $this->db->where('id',$this->data['doc_det']->designations);
+            $desg_row = $this->db->get('designations')->row();
+            $this->data['desg'] = !empty($desg_row) ? $desg_row->name : 'N/A';
+        
+            $this->db->where('id',$this->data['doc_det']->specialisation);
+            $spcl_row = $this->db->get('specialisation')->row();
+            $this->data['spcl'] = !empty($spcl_row) ? $spcl_row->name : 'N/A';
+        } else {
+            $this->data['desg'] = 'N/A';
+            $this->data['spcl'] = 'N/A';
+        }
+        
+        $this->db->where('id',$appointment_id);
+        $this->data['patient'] = $this->db->get($table)->row();
+        
+        // Handling prescriptions (adjusting query if online might use different logic, but for now keeping same)
+        $this->db->where('appointment_id',$appointment_id);
+        $this->db->where('prescription_type','diagnosis');
+        $this->data['diag'] = $this->db->get('patient_prescription')->row();
+      
+        $this->db->where('appointment_id',$appointment_id);
+        $this->db->where('prescription_type','prescription');
+        $this->data['pres'] = $this->db->get('patient_prescription')->row();
+        
+        $this->db->select('id');
+        $this->db->where('appointment_id',$appointment_id);
+        $this->data['epresp'] = $this->db->get('patient_prescription')->row(); 
     
   
                           

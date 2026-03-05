@@ -663,12 +663,24 @@ parent::__construct();
        
     }
 
-   public function appointment_status_post() 
+    public function appointment_status_post() 
     {
       
-      $user_id = $this->input->post('user_id');
+      $user_id = $this->post('user_id');
       //$appointment_id = $this->input->post('appointment_id');
-      $appointment_status = $this->input->post('doctor_status');
+      $appointment_status = $this->post('doctor_status') ? $this->post('doctor_status') : $this->post('status');
+
+      // Map app-side status values to DB status values
+      $status_map = array(
+          'pending'   => 'active',   // App sends "pending" → DB stores "active"
+          'accepted'  => 'accept',   // App sends "accepted" → DB stores "accept"
+          'cancelled' => 'reject',   // App sends "cancelled" → DB stores "reject"
+          'canceled'  => 'reject',   // alternate spelling
+      );
+      if (isset($status_map[$appointment_status])) {
+          $appointment_status = $status_map[$appointment_status];
+      }
+
       $sql = $this->Doctors_model->appointment_status($user_id,$appointment_status);
 
       if($sql)

@@ -2,16 +2,19 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 // Check if PhonePe SDK is available
-$sdk_available = false;
-if (file_exists(APPPATH . 'vendor/autoload.php')) {
-    require_once APPPATH . 'vendor/autoload.php';
-    $sdk_available = class_exists('PhonePe\PaymentGateway\Client\StandardCheckoutClient');
+$sdk_available_global = false;
+if (file_exists(APPPATH . '../vendor/autoload.php')) {
+    require_once APPPATH . '../vendor/autoload.php';
+    $sdk_available_global = class_exists('PhonePe\payments\v2\standardCheckout\StandardCheckoutClient');
+} elseif (file_exists(FCPATH . 'vendor/autoload.php')) {
+    require_once FCPATH . 'vendor/autoload.php';
+    $sdk_available_global = class_exists('PhonePe\payments\v2\standardCheckout\StandardCheckoutClient');
 }
 
-// Use SDK classes if available, otherwise create fallback
-if ($sdk_available) {
-    // SDK classes will be used when available
-}
+use PhonePe\payments\v2\standardCheckout\StandardCheckoutClient;
+use PhonePe\payments\v2\models\request\builders\StandardCheckoutPayRequestBuilder;
+use PhonePe\payments\v2\models\request\builders\StandardCheckoutRefundRequestBuilder;
+use PhonePe\Env;
 
 class PhonePeSDKClient {
     
@@ -20,13 +23,19 @@ class PhonePeSDKClient {
     private $clientSecret;
     private $clientVersion;
     private $environment;
+    private $sdk_available;
     
     public function __construct($config = array()) {
+        global $sdk_available_global;
+        $this->sdk_available = $sdk_available_global;
+        
         // Get configuration from constants or config
-        $this->clientId = $config['clientId'] ?? PHONEPE_CLIENT_ID;
-        $this->clientSecret = $config['clientSecret'] ?? PHONEPE_CLIENT_SECRET;
-        $this->clientVersion = $config['clientVersion'] ?? PHONEPE_CLIENT_VERSION;
-        $this->environment = $config['environment'] ?? PHONEPE_ENVIRONMENT;
+        $this->clientId = $config['clientId'] ?? (defined('PHONEPE_CLIENT_ID') ? PHONEPE_CLIENT_ID : '');
+        $this->clientSecret = $config['clientSecret'] ?? (defined('PHONEPE_CLIENT_SECRET') ? PHONEPE_CLIENT_SECRET : '');
+        $this->clientVersion = $config['clientVersion'] ?? (defined('PHONEPE_CLIENT_VERSION') ? PHONEPE_CLIENT_VERSION : 1);
+        
+        $mode = $config['environment'] ?? (defined('PHONEPE_MODE') ? PHONEPE_MODE : 'UAT');
+        $this->environment = ($mode == 'PROD') ? Env::PRODUCTION : Env::UAT;
         
         // Log configuration for debugging
         if (function_exists('log_message')) {
@@ -51,7 +60,7 @@ class PhonePeSDKClient {
      * Following official documentation: https://developer.phonepe.com/payment-gateway/backend-sdk/php-be-sdk/integration-steps
      */
     private function initializeClient() {
-        if (!$sdk_available) {
+        if (!$this->sdk_available) {
             if (function_exists('log_message')) {
                 log_message('info', 'PhonePe SDK not available, using fallback implementation');
             } else {
@@ -62,10 +71,10 @@ class PhonePeSDKClient {
         }
         
         try {
-            $this->client = new StandardCheckoutClient(
+            $this->client = StandardCheckoutClient::getInstance(
                 $this->clientId,
-                $this->clientSecret,
                 $this->clientVersion,
+                $this->clientSecret,
                 $this->environment
             );
         } catch (Exception $e) {
@@ -84,29 +93,24 @@ class PhonePeSDKClient {
      */
     public function initiatePayment($merchantOrderId, $amount, $redirectUrl = null, $additionalParams = array()) {
         // Fallback implementation when SDK is not available
-        if (!$sdk_available || $this->client === null) {
+        if (!$this->sdk_available || $this->client === null) {
             return $this->fallbackInitiatePayment($merchantOrderId, $amount, $redirectUrl, $additionalParams);
         }
         
         try {
             // Build payment request using SDK builder
-            $payRequestBuilder = new StandardCheckoutPayRequestBuilder();
+            $payRequestBuilder = StandardCheckoutPayRequestBuilder::builder();
             
             // Set required parameters
-            $payRequestBuilder->setMerchantOrderId($merchantOrderId);
-            $payRequestBuilder->setAmount($amount);
+            $payRequestBuilder->merchantOrderId($merchantOrderId);
+            $payRequestBuilder->amount(intval($amount));
             
             // Set optional redirect URL
             if ($redirectUrl) {
-                $payRequestBuilder->setRedirectUrl($redirectUrl);
+                $payRequestBuilder->redirectUrl($redirectUrl);
             }
             
-            // Add additional parameters if provided
-            if (!empty($additionalParams)) {
-                foreach ($additionalParams as $key => $value) {
-                    $payRequestBuilder->setAdditionalParam($key, $value);
-                }
-            }
+            $payRequestBuilder->message($additionalParams['message'] ?? 'Payment for order ' . $merchantOrderId);
             
             // Build the request
             $payRequest = $payRequestBuilder->build();
@@ -210,21 +214,13 @@ class PhonePeSDKClient {
      */
     public function getOrderStatus($merchantOrderId, $details = true) {
         // Fallback implementation when SDK is not available
-        if (!$sdk_available || $this->client === null) {
+        if (!$this->sdk_available || $this->client === null) {
             return $this->fallbackGetOrderStatus($merchantOrderId, $details);
         }
         
         try {
-            // Build order status request
-            $orderStatusRequestBuilder = new StandardCheckoutOrderStatusRequestBuilder();
-            $orderStatusRequestBuilder->setMerchantOrderId($merchantOrderId);
-            $orderStatusRequestBuilder->setDetails($details);
-            
-            // Build the request
-            $orderStatusRequest = $orderStatusRequestBuilder->build();
-            
             // Get order status
-            $orderStatusResponse = $this->client->getOrderStatus($orderStatusRequest);
+            $orderStatusResponse = $this->client->getOrderStatus($merchantOrderId, $details);
             
             return array(
                 'status' => true,
@@ -304,10 +300,10 @@ class PhonePeSDKClient {
     public function initiateRefund($merchantRefundId, $originalMerchantOrderId, $amount) {
         try {
             // Build refund request
-            $refundRequestBuilder = new StandardCheckoutRefundRequestBuilder();
-            $refundRequestBuilder->setMerchantRefundId($merchantRefundId);
-            $refundRequestBuilder->setOriginalMerchantOrderId($originalMerchantOrderId);
-            $refundRequestBuilder->setAmount($amount);
+            $refundRequestBuilder = StandardCheckoutRefundRequestBuilder::builder();
+            $refundRequestBuilder->merchantRefundId($merchantRefundId);
+            $refundRequestBuilder->originalMerchantOrderId($originalMerchantOrderId);
+            $refundRequestBuilder->amount(intval($amount));
             
             // Build the request
             $refundRequest = $refundRequestBuilder->build();
@@ -347,15 +343,8 @@ class PhonePeSDKClient {
      */
     public function getRefundStatus($merchantRefundId) {
         try {
-            // Build refund status request
-            $refundStatusRequestBuilder = new StandardCheckoutRefundStatusRequestBuilder();
-            $refundStatusRequestBuilder->setMerchantRefundId($merchantRefundId);
-            
-            // Build the request
-            $refundStatusRequest = $refundStatusRequestBuilder->build();
-            
             // Get refund status
-            $refundStatusResponse = $this->client->getRefundStatus($refundStatusRequest);
+            $refundStatusResponse = $this->client->getRefundStatus($merchantRefundId);
             
             return array(
                 'status' => true,
@@ -390,16 +379,17 @@ class PhonePeSDKClient {
      */
     public function verifyCallbackResponse($username, $password, $authorization, $responseBody) {
         // Fallback implementation when SDK is not available
-        if (!$sdk_available || $this->client === null) {
+        if (!$this->sdk_available || $this->client === null) {
             return $this->fallbackVerifyCallbackResponse($username, $password, $authorization, $responseBody);
         }
         
         try {
-            $callbackResponse = StandardCheckoutCallbackResponse::verifyCallbackResponse(
+            $headers = array('authorization' => $authorization);
+            $callbackResponse = $this->client->verifyCallbackResponse(
+                $headers,
+                $responseBody,
                 $username,
-                $password,
-                $authorization,
-                $responseBody
+                $password
             );
             
             return array(

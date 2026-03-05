@@ -99,24 +99,33 @@
 
                    <div class="col-md-3">
                             <div class="widget style1 navy-bg">
+                            <?php 
+                                $offline_count = $this->db->get('doctor_appointments')->num_rows(); 
+                                $online_count = $this->db->where('payment_status', 'completed')->get('online_doctor_appointments')->num_rows();
+                                $appointment_count = $offline_count + $online_count;
+                            ?>
                                 <a style="color: #FFF;" href="<?php echo base_url(); ?>admin/doctors_appointments"><div class="row">
-                            <?php $doctor_appointments = $this->db->get('doctor_appointments')->num_rows(); ?>
                                     <div class="col-xs-12 text-center">
                                         <span>Doctor Appointments</span>
-                                                           <h2 class="font-bold"><?= $doctor_appointments ?></h2>
+                                        <h2 class="font-bold"><?= $appointment_count ?></h2>
                                     </div>
                                 </div></a>
                             </div>
                         </div>
+
                 
                         
                         <div class="col-md-3">
                             <div class="widget style1 navy-bg">
+                            <?php 
+                                $offline_count = $this->db->get('doctor_appointments')->num_rows(); 
+                                $online_count = $this->db->where('payment_status', 'completed')->get('online_doctor_appointments')->num_rows();
+                                $total_payments = $offline_count + $online_count;
+                            ?>
                                 <a style="color: #FFF;" href="<?php echo base_url(); ?>admin/doctor_payments"><div class="row">
-                            <?php $doctor_appointments = $this->db->get('doctor_appointments')->num_rows(); ?>
                                     <div class="col-xs-12 text-center">
-                                        <span>Payments</span>
-                                        <h2 class="font-bold"><?= $doctor_appointments ?></h2>
+                                        <span>Total Payments</span>
+                                        <h2 class="font-bold"><?= $total_payments ?></h2>
                                     </div>
                                 </div></a>
                             </div>

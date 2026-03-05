@@ -325,7 +325,8 @@ class Phonepe_hermes extends REST_Controller {
             if ($res && $res->getState() == 'COMPLETED') {
                 $subscription_id = null;
                 // Capture mandate/subscriptionId from PhonePe response
-                if (isset($res->subscriptionDetails) && isset($res->subscriptionDetails->subscriptionId)) {
+                $subscription_id = null;
+                if (isset($res->subscriptionDetails) && is_object($res->subscriptionDetails) && isset($res->subscriptionDetails->subscriptionId)) {
                     $subscription_id = $res->subscriptionDetails->subscriptionId;
                 }
 
@@ -372,16 +373,46 @@ class Phonepe_hermes extends REST_Controller {
                 // Also insert into main doctor_appointments if required by system
                 $online_app = $this->db->where('id', $appointment_id)->get('online_doctor_appointments')->row();
                 if ($online_app) {
-                    $main_data = (array)$online_app;
-                    unset($main_data['id']);
-                    unset($main_data['phonepe_transaction_id']);
-                    unset($main_data['phonepe_order_id']);
-                    unset($main_data['phonepe_order_token']);
-                    unset($main_data['status']);
-                    unset($main_data['payment_status']);
-                    $this->db->insert('doctor_appointments', $main_data);
+                    // Check if this online appointment already exists in doctor_appointments
+                    $existing = $this->db
+                        ->where('patient_id', $online_app->patient_id)
+                        ->where('doctor_id', $online_app->doctor_id)
+                        ->where('date', $online_app->date)
+                        ->where('time_slot_value', $online_app->time_slot_value)
+                        ->get('doctor_appointments')->row();
+
+                    if (!$existing) {
+                        // Not found - safe to insert
+                        $main_data = array(
+                            'patient_id'              => $online_app->patient_id,
+                            'doctor_id'               => $online_app->doctor_id,
+                            'date'                    => $online_app->date,
+                            'time_slot_name'          => $online_app->time_slot_name,
+                            'time_slot_value'         => $online_app->time_slot_value,
+                            'patient_name'            => $online_app->patient_name,
+                            'patient_mobile'          => $online_app->patient_mobile,
+                            'patient_age'             => $online_app->patient_age,
+                            'patient_gender'          => $online_app->patient_gender,
+                            'patient_visiting_purpose'=> $online_app->patient_visiting_purpose,
+                            'consultation_fee'        => $online_app->consultation_fee,
+                            'appointment_type'        => $online_app->type,
+                            'doctor_status'           => 'active', // Wait for doctor to accept
+                            'created_date'            => $online_app->created_date
+                        );
+                        $this->db->insert('doctor_appointments', $main_data);
+                        $new_apt_id = $this->db->conn_id->insert_id;
+
+                        // Link online appointment to the new doctor_appointments record
+                        $this->db->where('id', $appointment_id);
+                        $this->db->update('online_doctor_appointments', array('doctor_appointment_id' => $new_apt_id));
+                    } else {
+                        // Already exists - just link the records
+                        $this->db->where('id', $appointment_id);
+                        $this->db->update('online_doctor_appointments', array('doctor_appointment_id' => $existing->id));
+                    }
                 }
                 return;
+
             }
 
             // Handle Subscriptions (Doctor/Customer)

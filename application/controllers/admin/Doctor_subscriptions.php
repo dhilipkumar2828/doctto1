@@ -12,24 +12,32 @@ class Doctor_subscriptions extends MY_Controller {
             redirect('admin/login');
         }
 
-        $this->load->model('admin/doctor_subscriptions_model');
-        $this->load->model('admin/doctors_model');
-        $this->load->model('admin_model');
+        $this->load->model('admin/Doctor_subscriptions_model', 'doctor_subscriptions_model');
+        $this->load->model('admin/Doctors_model', 'doctors_model');
+        $this->load->model('Admin_model', 'admin_model');
         $this->data['page_name'] = 'doctor_subscriptions';
     }
 
     function index() {
-        $this->data['page_title'] = 'Doctor Subscriptions';
+        $type = $this->input->get('type') ? $this->input->get('type') : 'doctor';
+        $this->data['selected_type'] = $type;
+        $this->data['page_title'] = ucfirst($type) . ' Subscriptions';
         
-        // Get filter parameters
-        $doctor_id = $this->input->get('doctor_id');
         $status = $this->input->get('status');
-        
-        $subscriptions = $this->doctor_subscriptions_model->get_all_subscriptions($doctor_id, $status);
-        $this->data['subscriptions'] = $subscriptions;
-        $this->data['doctors'] = $this->doctors_model->get_doctors();
-        $this->data['filter_doctor_id'] = $doctor_id;
         $this->data['filter_status'] = $status;
+
+        if ($type == 'doctor') {
+            $doctor_id = $this->input->get('doctor_id');
+            $this->data['subscriptions'] = $this->doctor_subscriptions_model->get_all_subscriptions($doctor_id, $status);
+            $this->data['doctors'] = $this->doctors_model->get_doctors();
+            $this->data['filter_doctor_id'] = $doctor_id;
+        } else {
+            $user_id = $this->input->get('user_id');
+            $this->data['subscriptions'] = $this->doctor_subscriptions_model->get_all_user_subscriptions($user_id, $status);
+            $this->db->select('id, first_name, last_name, phone');
+            $this->data['users'] = $this->db->get('users')->result();
+            $this->data['filter_user_id'] = $user_id;
+        }
         
         $this->admin_view('doctor_subscriptions');
     }
@@ -147,12 +155,21 @@ class Doctor_subscriptions extends MY_Controller {
     }
 
     function changeStatus($subscription_id, $status) {
-        if ($this->doctor_subscriptions_model->change_status($subscription_id, $status)) {
-            $status_text = $status;
-            $this->session->set_flashdata('success_message', "Doctor Subscription status changed to $status_text successfully");
+        $type = $this->input->get('type') ? $this->input->get('type') : 'doctor';
+        
+        if ($type == 'doctor') {
+            $res = $this->doctor_subscriptions_model->change_status($subscription_id, $status);
+        } else {
+            $this->db->where('id', $subscription_id);
+            $res = $this->db->update('user_subscriptions', array('status' => $status));
+        }
+
+        if ($res) {
+            $this->session->set_flashdata('success_message', "Subscription status changed to $status successfully");
         } else {
             $this->session->set_flashdata('error_message', 'Unable to change status');
         }
-        redirect('admin/doctor_subscriptions');
+        session_write_close();
+        redirect('admin/doctor_subscriptions?type=' . $type);
     }
 }

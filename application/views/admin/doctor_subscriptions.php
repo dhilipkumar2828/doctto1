@@ -35,22 +35,27 @@
         <div class="col-lg-12">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>Doctor Subscriptions</h5>
+                    <h5><?= $page_title ?></h5>
                     <div class="ibox-tools">
                         <a href="<?= base_url() ?>admin/dashboard">
                             <button class="btn btn-primary">BACK</button>
                         </a>
-                        <a href="<?= base_url() ?>admin/doctor_subscriptions/add">
-                            <button class="btn btn-primary">+ Add Subscription</button>
-                        </a>
                     </div>
                 </div>
 
-                <?php if (!empty($this->session->flashdata('success_message'))) { ?>
+                <div class="ibox-content" style="padding-bottom: 0;">
+                    <div class="btn-group" style="margin-bottom: 10px;">
+                        <a href="<?= base_url() ?>admin/doctor_subscriptions?type=doctor" class="btn btn-<?= ($selected_type == 'doctor') ? 'primary' : 'default' ?>">Doctors</a>
+                        <a href="<?= base_url() ?>admin/doctor_subscriptions?type=customer" class="btn btn-<?= ($selected_type == 'customer') ? 'primary' : 'default' ?>">Customers</a>
+                    </div>
+                </div>
+
+                <?php if ($success = $this->session->flashdata('success_message')) { ?>
                     <div class="alert alert-success fade in alert-dismissable">
                         <a href="#" class="close" data-dismiss="alert" aria-label="close">×</a>
-                        <strong>Success!</strong> <?= $this->session->flashdata('success_message') ?>
+                        <strong>Success!</strong> <?= $success ?>
                     </div>
+                    <?php $this->session->unset_userdata('success_message'); ?>
                 <?php } ?>
 
                 <?php if (!empty($this->session->flashdata('error_message'))) { ?>
@@ -63,6 +68,9 @@
                 <!-- Filter Section -->
                 <div class="filter-section">
                     <form method="get" action="<?= base_url() ?>admin/doctor_subscriptions" class="form-inline">
+                        <input type="hidden" name="type" value="<?= $selected_type ?>">
+                        
+                        <?php if($selected_type == 'doctor'): ?>
                         <div class="form-group" style="margin-right: 15px;">
                             <label style="margin-right: 5px;">Doctor:</label>
                             <select name="doctor_id" class="form-control">
@@ -74,6 +82,20 @@
                                 <?php endforeach; ?>
                             </select>
                         </div>
+                        <?php else: ?>
+                        <div class="form-group" style="margin-right: 15px;">
+                            <label style="margin-right: 5px;">Customer:</label>
+                            <select name="user_id" class="form-control">
+                                <option value="">All Customers</option>
+                                <?php foreach ($users as $user): ?>
+                                    <option value="<?= $user->id ?>" <?= ($filter_user_id == $user->id) ? 'selected' : '' ?>>
+                                        <?= $user->first_name ?> <?= $user->last_name ?> (<?= $user->phone ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <?php endif; ?>
+
                         <div class="form-group" style="margin-right: 15px;">
                             <label style="margin-right: 5px;">Status:</label>
                             <select name="status" class="form-control">
@@ -81,11 +103,10 @@
                                 <option value="active" <?= ($filter_status == 'active') ? 'selected' : '' ?>>Active</option>
                                 <option value="expired" <?= ($filter_status == 'expired') ? 'selected' : '' ?>>Expired</option>
                                 <option value="cancelled" <?= ($filter_status == 'cancelled') ? 'selected' : '' ?>>Cancelled</option>
-                                <option value="pending" <?= ($filter_status == 'pending') ? 'selected' : '' ?>>Pending</option>
                             </select>
                         </div>
                         <button type="submit" class="btn btn-primary">Filter</button>
-                        <a href="<?= base_url() ?>admin/doctor_subscriptions" class="btn btn-default">Clear</a>
+                        <a href="<?= base_url() ?>admin/doctor_subscriptions?type=<?= $selected_type ?>" class="btn btn-default">Clear</a>
                     </form>
                 </div>
 
@@ -95,12 +116,16 @@
                             <thead>
                                 <tr>
                                     <th>ID</th>
-                                    <th>Doctor</th>
+                                    <th><?= ($selected_type == 'doctor') ? 'Doctor' : 'Customer' ?></th>
                                     <th>Plan</th>
                                     <th>Start Date</th>
                                     <th>End Date</th>
                                     <th>Status</th>
+                                    <?php if($selected_type == 'doctor'): ?>
                                     <th>Auto Renew</th>
+                                    <?php else: ?>
+                                    <th>Cons. Used</th>
+                                    <?php endif; ?>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -110,56 +135,40 @@
                                         <tr>
                                             <td><?= $subscription->id ?></td>
                                             <td>
-                                                <strong><?= $subscription->doctor_name ?></strong><br>
-                                                <small><?= $subscription->hospital_name ?></small><br>
-                                                <small><?= $subscription->mobile_number ?></small>
-                                            </td>
-                                            <td>
-                                                <strong><?= $subscription->plan_name ?></strong><br>
-                                                <small>₹<?= number_format($subscription->plan_price, 2) ?></small>
-                                            </td>
-                                            <td><?= date('d M Y', strtotime($subscription->start_at)) ?></td>
-                                            <td><?= date('d M Y', strtotime($subscription->end_at)) ?></td>
-                                            <td>
-                                                <?php if ($subscription->status == 'active'): ?>
-                                                    <span class="status-badge status-active">Active</span>
-                                                <?php elseif ($subscription->status == 'expired'): ?>
-                                                    <span class="status-badge status-expired">Expired</span>
-                                                <?php elseif ($subscription->status == 'cancelled'): ?>
-                                                    <span class="status-badge status-cancelled">Cancelled</span>
+                                                <?php if($selected_type == 'doctor'): ?>
+                                                    <strong><?= $subscription->doctor_name ?></strong><br>
+                                                    <small><?= $subscription->hospital_name ?></small><br>
+                                                    <small><?= $subscription->mobile_number ?></small>
                                                 <?php else: ?>
-                                                    <span class="status-badge status-pending">Pending</span>
+                                                    <strong><?= $subscription->first_name ?? '' ?> <?= $subscription->last_name ?? '' ?></strong><br>
+                                                    <small><?= $subscription->phone ?? '' ?></small>
                                                 <?php endif; ?>
                                             </td>
                                             <td>
-                                                <?php if ($subscription->auto_renew == 1): ?>
-                                                    <span class="badge badge-success">Yes</span>
+                                                <strong><?= $subscription->plan_name ?? 'N/A' ?></strong><br>
+                                                <small>₹<?= number_format((float)($subscription->plan_price ?? 0), 2) ?></small>
+                                            </td>
+                                            <td><?= ($selected_type == 'doctor') ? (!empty($subscription->start_at) ? date('d M Y', strtotime($subscription->start_at)) : '-') : (!empty($subscription->start_date) ? date('d M Y', strtotime($subscription->start_date)) : '-') ?></td>
+                                            <td><?= ($selected_type == 'doctor') ? (!empty($subscription->end_at) ? date('d M Y', strtotime($subscription->end_at)) : '-') : (!empty($subscription->end_date) ? date('d M Y', strtotime($subscription->end_date)) : '-') ?></td>
+                                            <td>
+                                                <span class="status-badge status-<?= $subscription->status ?? 'unknown' ?>"><?= ucfirst($subscription->status ?? 'unknown') ?></span>
+                                            </td>
+                                            <td>
+                                                <?php if($selected_type == 'doctor'): ?>
+                                                    <?= ($subscription->auto_renew == 1) ? '<span class="badge badge-success">Yes</span>' : '<span class="badge badge-secondary">No</span>' ?>
                                                 <?php else: ?>
-                                                    <span class="badge badge-secondary">No</span>
+                                                    <?= isset($subscription->consultations_used) ? $subscription->consultations_used : '0' ?> / <?= isset($subscription->consultations_remaining) ? $subscription->consultations_remaining : '0' ?>
                                                 <?php endif; ?>
                                             </td>
                                             <td>
                                                 <div class="btn-group">
-                                                    <a href="<?= base_url() ?>admin/doctor_subscriptions/edit/<?= $subscription->id ?>" 
-                                                       class="btn btn-xs btn-primary" title="Edit">
+                                                    <?php if($selected_type == 'doctor'): ?>
+                                                    <a href="<?= base_url() ?>admin/doctor_subscriptions/edit/<?= $subscription->id ?>" class="btn btn-xs btn-primary" title="Edit">
                                                         <i class="fa fa-edit"></i>
                                                     </a>
-                                                    
-                                                    <?php if ($subscription->status == 'active'): ?>
-                                                        <a href="<?= base_url() ?>admin/doctor_subscriptions/changeStatus/<?= $subscription->id ?>/expired" 
-                                                           class="btn btn-xs btn-warning" title="Mark Expired"
-                                                           onclick="return confirm('Are you sure you want to mark this subscription as expired?')">
-                                                            <i class="fa fa-clock-o"></i>
-                                                        </a>
-                                                    <?php elseif ($subscription->status == 'pending'): ?>
-                                                        <a href="<?= base_url() ?>admin/doctor_subscriptions/changeStatus/<?= $subscription->id ?>/active" 
-                                                           class="btn btn-xs btn-success" title="Activate"
-                                                           onclick="return confirm('Are you sure you want to activate this subscription?')">
-                                                            <i class="fa fa-check"></i>
-                                                        </a>
                                                     <?php endif; ?>
                                                     
-                                                    <a href="<?= base_url() ?>admin/doctor_subscriptions/changeStatus/<?= $subscription->id ?>/cancelled" 
+                                                    <a href="<?= base_url() ?>admin/doctor_subscriptions/changeStatus/<?= $subscription->id ?>/cancelled?type=<?= $selected_type ?>" 
                                                        class="btn btn-xs btn-danger" title="Cancel"
                                                        onclick="return confirm('Are you sure you want to cancel this subscription?')">
                                                         <i class="fa fa-times"></i>
@@ -170,7 +179,7 @@
                                     <?php endforeach; ?>
                                 <?php else: ?>
                                     <tr>
-                                        <td colspan="8" class="text-center">No doctor subscriptions found</td>
+                                        <td colspan="8" class="text-center">No subscriptions found</td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>
@@ -181,32 +190,3 @@
         </div>
     </div>
 </div>
-
-<script>
-$(document).ready(function() {
-    // Destroy existing DataTable if it exists to prevent reinitialization
-    if ($.fn.DataTable.isDataTable('.dataTables-example')) {
-        $('.dataTables-example').DataTable().destroy();
-    }
-    
-    // Initialize DataTable with safe configuration
-    $('.dataTables-example').DataTable({
-        pageLength: 25,
-        responsive: true,
-        dom: '<"html5buttons"B>lTfgitp',
-        buttons: [
-            {extend: 'excel', title: 'Doctor Subscriptions'},
-            {extend: 'pdf', title: 'Doctor Subscriptions'},
-            {extend: 'print',
-                customize: function (win){
-                    $(win.document.body).addClass('white-bg');
-                    $(win.document.body).css('font-size', '10px');
-                    $(win.document.body).find('table')
-                        .addClass('compact')
-                        .css('font-size', 'inherit');
-                }
-            }
-        ]
-    });
-});
-</script>

@@ -774,7 +774,6 @@ function notificationCount($user_id)
                     $designations_array[]=$ex_des_vl_row->name;
                 }
                 $designations_implode=implode(',', $designations_array);
-                $name = $data2->name;
 
                 $this->db->get($table1)->num_rows();
                 // if(count($data1)>0){
@@ -1198,7 +1197,8 @@ function notificationCount($user_id)
             $otp_message = "Dear ".$patient_name." your booking no.".$appointment_id." is successfully placed, awaiting for doctor confirmation. Thanks & Regards...! DOCTTO";
             $template_id = '1407168691886113081';
 
-            $this->send_message($otp_message,$phone,$template_id);
+            $this->load->model('User');
+            $this->User->send_message($otp_message,$patient_mobile,$template_id);
 
             $date=date("d M,Y",strtotime($date));
             return array('status'=>TRUE,'message'=>'Appointment Success','first_name'=>$first_name,'doctor_name'=>$doctor_name,'patient_name'=>$patient_name,'date'=>$date,'time_slot_value'=>$time_slot_value); 
@@ -1315,84 +1315,133 @@ function updateNotifications($user_id)
     function appointment_status($user_id,$status){
         $this->cancelledTheAppointment($status);
         $table = "doctor_appointments";
-        $this->db->select("id,doctor_id,doctor_status,date, time_slot_name, time_slot_value, rejected_by");
-        $this->db->where('doctor_status',$status);
-        $this->db->where("patient_id",$user_id);
-        //$this->db->where("id",$appointment_id);
-        $this->db->order_by("id","desc");
-        $data = $this->db->get($table)->result();
+        
+        // Fetch offline appointments
+        $this->db->select("id, doctor_id, doctor_status, date, time_slot_name, time_slot_value, rejected_by, reason, comments, patient_name, patient_mobile, patient_age, patient_gender, consultation_fee, appointment_type, 'offline' as source");
+        if ($status == 'active') {
+            // "pending" tab: show both "active" and "pending" statuses
+            $this->db->group_start();
+            $this->db->where('doctor_status', 'active');
+            $this->db->or_where('doctor_status', 'pending');
+            $this->db->group_end();
+        } else {
+            $this->db->where('doctor_status', $status);
+        }
+        $this->db->where("patient_id", $user_id);
+        $this->db->order_by("id", "desc");
+        $offline_data = $this->db->get($table)->result();
 
-        //print_r($this->db->last_query()); die;
+        // Fetch ONLY from doctor_appointments table.
+        // Reason: When PhonePe payment is verified, we INSERT into doctor_appointments
+        // (with doctor_status='active'). So all appointments (online & offline) are in
+        // doctor_appointments. Fetching from online_doctor_appointments causes DUPLICATES.
+        $online_data = [];
+
+        // EXCEPTION: For 'completed' status only, also fetch online appointments
+        // that were NOT copied to doctor_appointments (edge case / old data).
+        if ($status == 'completed') {
+            // Get IDs already fetched from doctor_appointments to avoid duplicates
+            $existing_ids = array_column(array_map(function($v){ return (array)$v; }, $offline_data), 'id');
+
+            $this->db->select("oda.id, oda.doctor_id, oda.payment_status as doctor_status, oda.date, oda.time_slot_name, oda.time_slot_value, '' as rejected_by, '' as reason, '' as comments, oda.patient_name, oda.patient_mobile, oda.patient_age, oda.patient_gender, oda.consultation_fee, oda.type as appointment_type, 'online' as source");
+            $this->db->from('online_doctor_appointments oda');
+            $this->db->where('oda.patient_id', $user_id);
+            $this->db->group_start();
+            $this->db->where('oda.payment_status', 'completed');
+            $this->db->or_where('oda.payment_status', 'COMPLETED');
+            $this->db->group_end();
+            // Exclude ones already present in doctor_appointments via phonepe_transaction_id
+            $this->db->join('doctor_appointments da', 'da.patient_id = oda.patient_id AND da.date = oda.date AND da.time_slot_value = oda.time_slot_value AND da.doctor_id = oda.doctor_id', 'left');
+            $this->db->where('da.id IS NULL', null, false);
+            $this->db->order_by("oda.id", "desc");
+            $online_data = $this->db->get()->result();
+        }
+
+        $data = array_merge($offline_data, $online_data);
+
+
         if(count($data)>0){
             $array=[];
             foreach ($data as $value) {
-                $doctor_status=$value->doctor_status;
-                if($doctor_status=='active'){
-                    $status="Waiting for Doctor Acceptancy";
+                $orig_status = $value->doctor_status;
+                if($orig_status=='active' || $orig_status == 'pending'){
+                    $status_text="Waiting for Doctor Acceptancy";
                 }
-                elseif ($doctor_status=='accept') {
-                    $status="Doctor Accepted your Booking";
+                elseif ($orig_status=='accept') {
+                    $status_text="Doctor Accepted your Booking";
                 }
-                elseif ($doctor_status=='completed') {
-                    $status="completed";
+                elseif ($orig_status=='completed' || $orig_status == 'COMPLETED') {
+                    $status_text="completed";
                 }
-                elseif ($doctor_status=='reject') {
-                    $status="Cancelled";
+                elseif ($orig_status=='reject') {
+                    $status_text="Cancelled";
 
-                    if($value->rejected_by=="patient"){
+                    if(isset($value->rejected_by) && $value->rejected_by=="patient"){
                         $value->rejected_by = "You";
                     }
                     else
                     {
                          $value->rejected_by = "Doctor";
                     }
-
+                }
+                else {
+                    $status_text = $orig_status;
                 }
 
                 $doctor_id=$value->doctor_id;
-                $doctor_status=$value->doctor_status;
                 $date=date("d M,Y",strtotime($value->date)); 
-
                 $time_slot_value=$value->time_slot_value;
-
-
-                /*if($value->time_slot_name=='morning'){
-                     $time_slot_value=$time_slot_value.":00 AM";
-                }   
-                else if($value->time_slot_name=='afternoon'){
-                     $time_slot_value=$time_slot_value.":00 PM";
-                } 
-                elseif ($value->time_slot_name=='evening') {
-                     $time_slot_value=$time_slot_value.":00 PM";
-                } */
                 
                 $data1 = $this->db->where(array('id'=>$doctor_id))->get("doctors")->row();
-                $hospital_name = $data1->hospital_name;
-                $doctor_name = $data1->doctor_name;
-                $doctor_image = base_url()."uploads/doctors/".$data1->doctor_image;
-                $designations = $data1->designations;               
-                $designations_implode= $this->get_designation_names_csv($data1->designations); 
-                $name = $data2->name;
-                $array[]= array('id'=>$value->id,'hospital_name'=>$hospital_name,'doctor_name'=>$doctor_name,'doctor_image'=>$doctor_image,'designations'=>$designations_implode,'date'=>$date,'time_slot_value'=>$time_slot_value,'doctor_status'=>$status,'rejected_by'=>$value->rejected_by); 
+                if ($data1) {
+                    $hospital_name = $data1->hospital_name;
+                    $doctor_name = $data1->doctor_name;
+                    $doctor_image = !empty($data1->doctor_image) 
+                        ? base_url()."uploads/doctors/".$data1->doctor_image 
+                        : base_url()."uploads/profile-icon-3.png";
+                    $hospital_image = !empty($data1->hospital_image)
+                        ? base_url()."uploads/doctors/".$data1->hospital_image
+                        : base_url()."uploads/profile-icon-3.png";
+                    $designations_implode = $this->get_designation_names_csv($data1->designations); 
+                    
+                    $array[]= array(
+                        'id'             => $value->id,
+                        'appointment_id' => $value->id,
+                        'hospital_name'  => $hospital_name,
+                        'hospital_image' => $hospital_image,
+                        'doctor_name'    => $doctor_name,
+                        'doctor_image'   => $doctor_image,
+                        'designations'   => $designations_implode,
+                        'date'           => $date,
+                        'time_slot_value'=> $time_slot_value,
+                        'time_slot_name' => $value->time_slot_name,
+                        'doctor_status'  => $status_text,
+                        'rejected_by'    => isset($value->rejected_by) ? $value->rejected_by : '',
+                        'reason'         => isset($value->reason) ? $value->reason : '',
+                        'comments'       => isset($value->comments) ? $value->comments : '',
+                        'patient_name'   => isset($value->patient_name) ? $value->patient_name : '',
+                        'patient_mobile' => isset($value->patient_mobile) ? $value->patient_mobile : '',
+                        'patient_age'    => isset($value->patient_age) ? $value->patient_age : '',
+                        'patient_gender' => isset($value->patient_gender) ? $value->patient_gender : '',
+                        'consultation_fee'=> isset($value->consultation_fee) ? $value->consultation_fee : '',
+                        'appointment_type'=> isset($value->appointment_type) ? $value->appointment_type : '',
+                        'source'         => isset($value->source) ? $value->source : 'offline',
+                        'doctor_id'      => $doctor_id,
+                        'doctor_mobile'  => $data1->mobile_number,
+                        'experience'     => $data1->experience,
+                        'doctor_rating'  => $data1->rating,
+                    ); 
+                }
             }
             if(count($array)>0)
             {   
-                $ar = array('status' =>TRUE,'data'=>$array);
-                return $ar;
+                return array('status' =>TRUE,'data'=>$array);
             }
-            else
-            {
-                $ar = array('status'=>FALSE,'message'=>"No data found");
-                return $ar; 
-            } 
         }
-         else
-        {
-            $ar = array('status'=>FALSE,'message'=>"No data found");
-            return $ar;
-        }
-       
+        
+        return array('status'=>FALSE,'message'=>"No data found");
     }
+
 
     function cancelledTheAppointment($status)
     {
@@ -1444,14 +1493,20 @@ function updateNotifications($user_id)
 
      function appointment_details($appointment_id, $user_id){
 
-        $table = "doctor_appointments";
-        $this->db->select("id,doctor_id,consultation_fee,date,time_slot_value,time_slot_name,patient_name,patient_mobile,patient_age,doctor_status,rejected_by, reason,comments,patient_gender,appointment_type,created_date,completed_date");
+        // Try offline first
+        $this->db->select("id,doctor_id,consultation_fee,date,time_slot_value,time_slot_name,patient_name,patient_mobile,patient_age,doctor_status,rejected_by, reason,comments,patient_gender,appointment_type,created_date,completed_date, 'offline' as source");
         $this->db->where("id",$appointment_id);
         $this->db->where('patient_id',$user_id);
-        $this->db->order_by("id","desc");
-        $data = $this->db->get($table)->result();
+        $data = $this->db->get("doctor_appointments")->result();
         
-        // echo $this->db->last_query();die; 
+        if (count($data) == 0) {
+            // Try online
+            $this->db->select("id,doctor_id,consultation_fee,date,time_slot_value,time_slot_name,patient_name,patient_mobile,patient_age,payment_status as doctor_status, '' as rejected_by, '' as reason, '' as comments, patient_gender, type as appointment_type, created_date, '' as completed_date, 'online' as source");
+            $this->db->where("id",$appointment_id);
+            $this->db->where('patient_id',$user_id);
+            $this->db->where('payment_status', 'completed');
+            $data = $this->db->get("online_doctor_appointments")->result();
+        }
        
         if(count($data)>0){
         $array = [];
@@ -1546,7 +1601,6 @@ function updateNotifications($user_id)
                 }
                 
                 
-                $name = $data2->name;
                 if($value->rejected_by!='')
                 {
                     $rejected_by= $value->rejected_by;

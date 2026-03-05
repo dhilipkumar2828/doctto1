@@ -9,5 +9,6 @@
 /test_sessions.php
 /application/logs/*
 /vendor/
+/application/sessions/*
 *.log
 .DS_Store

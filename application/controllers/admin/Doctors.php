@@ -12,10 +12,10 @@ class Doctors extends MY_Controller {
             redirect('admin/login');
         }
 
-        $this->load->model('admin/doctors_model');  
+        $this->load->model('admin/Doctors_model', 'doctors_model');  
 
-        $this->load->model("admin_model");
-        $this->load->model("admin/doctor_manage_category_model");
+        $this->load->model("Admin_model", "admin_model");
+        $this->load->model("admin/Doctor_manage_category_model", "doctor_manage_category_model");
         $this->data['page_name'] = 'doctors';
     }
 

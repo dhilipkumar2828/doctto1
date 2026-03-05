@@ -201,12 +201,12 @@
                                      <?php if($ads->num_rows()>0){  ?>
 
 
-                                    <?php echo $address->address; ?>,<br>
-                                    <?php if($localit->location_name!=''){ echo $localit->location_name; } ?>,<br>
-                                    <?php if($cities->city_name!=''){ echo $cities->city_name; }  ?>,<br>
-                                    <?php if($states->state_name!=''){ echo $states->state_name; } ?>,<br>
-                                    <?php if($address->pincode!=''){ echo $address->pincode; } ?>,<br>
-                                    <?php if($address->address_type==1){ echo "Home"; }else if($address->address_type==2){ echo "Office"; }else if($address->address_type==3){ echo "Others"; } 
+                                    <?php echo !empty($address) ? $address->address : ''; ?>,<br>
+                                    <?php if(!empty($localit) && $localit->location_name!=''){ echo $localit->location_name; } ?>,<br>
+                                    <?php if(!empty($cities) && $cities->city_name!=''){ echo $cities->city_name; }  ?>,<br>
+                                    <?php if(!empty($states) && $states->state_name!=''){ echo $states->state_name; } ?>,<br>
+                                    <?php if(!empty($address) && $address->pincode!=''){ echo $address->pincode; } ?>,<br>
+                                    <?php if(!empty($address)){ if($address->address_type==1){ echo "Home"; }else if($address->address_type==2){ echo "Office"; }else if($address->address_type==3){ echo "Others"; } }
                                 }
                                     ?><br>
                                 </td>

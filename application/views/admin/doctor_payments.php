@@ -144,7 +144,7 @@
                                             }
                                         ?>
                                     </td>
-                                    <td><a href="<?= base_url() ?>admin/doctor_payments/view_invoice/<?= $v->id ?>" target="_blank">  
+                                    <td><a href="<?= base_url() ?>admin/doctor_payments/view_invoice/<?= $v->id ?>?source=<?= isset($v->source) ? $v->source : 'offline' ?>" target="_blank">  
                             <button class="btn btn-primary">+ view</button>
                         </a></td>
 

@@ -90,9 +90,9 @@
 
                                     <td><?= $i ?></td>
 
-                                    <td><?= $states->state_name; ?></td>
+                                    <td><?= !empty($states) ? $states->state_name : 'N/A'; ?></td>
 
-                                    <td><?= $cities->city_name; ?></td>
+                                    <td><?= !empty($cities) ? $cities->city_name : 'N/A'; ?></td>
 
                                     <td><?= $loc->pincode; ?></td>
                                     <td><?php if($loc->status==0){ echo "Inactive"; }else if($loc->status==1){ echo "Active"; } ?></td>

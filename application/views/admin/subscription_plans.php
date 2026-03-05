@@ -43,11 +43,12 @@
                     </div>
                 </div>
 
-                <?php if (!empty($this->session->flashdata('success_message'))) { ?>
+                <?php if ($success = $this->session->flashdata('success_message')) { ?>
                     <div class="alert alert-success fade in alert-dismissable">
                         <a href="#" class="close" data-dismiss="alert" aria-label="close">×</a>
-                        <strong>Success!</strong> <?= $this->session->flashdata('success_message') ?>
+                        <strong>Success!</strong> <?= $success ?>
                     </div>
+                    <?php $this->session->unset_userdata('success_message'); ?>
                 <?php } ?>
 
                 <?php if (!empty($this->session->flashdata('error_message'))) { ?>

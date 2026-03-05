@@ -80,11 +80,11 @@
                                     <td><?php
                                         $stat = $this->db->query("select * from states where id='".$loc->state_id."'");
                                         $states = $stat->row();
-                                    echo $states->state_name; ?></td>
+                                    echo !empty($states) ? $states->state_name : 'N/A'; ?></td>
                                      <td><?php
                                         $cit = $this->db->query("select * from cities where id='".$loc->city_id."'");
                                         $cities = $cit->row();
-                                    echo $cities->city_name; ?></td>
+                                    echo !empty($cities) ? $cities->city_name : 'N/A'; ?></td>
 
 
                                     <td><?= $loc->pincode; ?></td>

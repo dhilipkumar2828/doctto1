@@ -91,7 +91,7 @@
 
                                     <td><?= $i ?></td>
 
-                                    <td><?= $states->state_name; ?></td>
+                                    <td><?= !empty($states) ? $states->state_name : 'N/A'; ?></td>
 
                                     <td><?= $ct->city_name; ?></td>
 

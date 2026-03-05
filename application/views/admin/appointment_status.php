@@ -73,15 +73,15 @@
 
                 </div>
 
-                <?php if (!empty($this->session->flashdata('success_message'))) { ?>
-
+                <?php 
+                $success_message = $this->session->flashdata('success_message');
+                if (!empty($success_message)) { ?>
                     <div class="alert alert-success fade in alert-dismissable"><a href="#" class="close" data-dismiss="alert" aria-label="close">×</a>
-
-                        <strong> Success!</strong> <?= $this->session->flashdata('success_message') ?>
-
+                        <strong> Success!</strong> <?= $success_message ?>
                     </div>
-
-                <?php } ?>
+                <?php 
+                    $this->session->unset_userdata('success_message');
+                } ?>
 
                 <?php if (!empty($this->session->flashdata('error_message'))) { ?>
 

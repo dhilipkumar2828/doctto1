@@ -154,26 +154,26 @@
                                     <td><?php
                                      $qry1 = $this->db->query("select * from states where id='".$v->state."'");
                                      $state_row = $qry1->row();
-                                    echo $state_row->state_name; ?>
+                                    echo (isset($state_row) && isset($state_row->state_name)) ? $state_row->state_name : 'N/A'; ?>
                                         
                                     </td>
 
                                     <td><?php
                                     $qry2 = $this->db->query("select * from cities where id='".$v->city."'");
                                      $city_row = $qry2->row();
-                                     echo $city_row->city_name;?>
+                                     echo (isset($city_row) && isset($city_row->city_name)) ? $city_row->city_name : 'N/A';?>
                                      </td>
 
                                     <td><?php
                                     $qry3 = $this->db->query("select * from pincodes where id='".$v->pincode."'");
                                     $pin_row = $qry3->row();
-                                    echo $pin_row->pincode;?></td>
+                                    echo (isset($pin_row) && isset($pin_row->pincode)) ? $pin_row->pincode : 'N/A';?></td>
                                     <td>
-
                                         <?php
                                             $desg = explode(',',$v->designations );
                                             for($i=0; $i<count($desg); $i++){
-                                                $designation = $this->db->get_where('designations',['id'=>$desg[$i]])->row()->name;
+                                                $designation_row = $this->db->get_where('designations',['id'=>$desg[$i]])->row();
+                                                $designation = !empty($designation_row) ? $designation_row->name : 'N/A';
                                                 ?>
                                                     <span class="badge"><?=$designation?></span>
                                                 <?php

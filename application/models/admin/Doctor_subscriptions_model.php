@@ -32,6 +32,26 @@ class Doctor_subscriptions_model extends CI_Model {
         }
     }
 
+    function get_all_user_subscriptions($user_id = null, $status = null) {
+        $this->db->select('us.*, u.first_name, u.last_name, u.phone, sp.name as plan_name, sp.price as plan_price');
+        $this->db->from('user_subscriptions us');
+        $this->db->join('users u', 'us.user_id = u.id');
+        $this->db->join('subscription_plans sp', 'us.plan_id = sp.id');
+        
+        if ($user_id) {
+            $this->db->where('us.user_id', $user_id);
+        }
+        
+        if ($status) {
+            $this->db->where('us.status', $status);
+        }
+        
+        $this->db->order_by('us.created_at', 'DESC');
+        $query = $this->db->get();
+        
+        return $query ? $query->result() : [];
+    }
+
     function get_subscription_by_id($id) {
         $this->db->select('ds.*, d.doctor_name, d.hospital_name, dsp.name as plan_name');
         $this->db->from('doctor_subscriptions ds');

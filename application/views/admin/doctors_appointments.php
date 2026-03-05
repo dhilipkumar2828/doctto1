@@ -1,3 +1,7 @@
+<?php
+$start_date = isset($start_date) ? $start_date : '';
+$end_date = isset($end_date) ? $end_date : '';
+?>
 <style>
 
     .shop_image{
@@ -55,15 +59,15 @@
 
                 </div>
 
-                <?php if (!empty($this->session->flashdata('success_message'))) { ?>
-
+                <?php 
+                $success_message = $this->session->flashdata('success_message');
+                if (!empty($success_message)) { ?>
                     <div class="alert alert-success fade in alert-dismissable"><a href="#" class="close" data-dismiss="alert" aria-label="close">×</a>
-
-                        <strong> Success!</strong> <?= $this->session->flashdata('success_message') ?>
-
+                        <strong> Success!</strong> <?= $success_message ?>
                     </div>
-
-                <?php } ?>
+                <?php 
+                    $this->session->unset_userdata('success_message');
+                } ?>
 
                 <?php if (!empty($this->session->flashdata('error_message'))) { ?>
 
@@ -115,13 +119,16 @@
                                 </div></a>
                             </div>
                         </div>
-                        
-                         <div class="col-md-3">
+                                                <div class="col-md-3">
                             <div class="widget style1 navy-bg">
                                 <a style="color: #FFF;" href="<?php echo base_url(); ?>admin/doctors_appointments/appointment_status?status=completed"><div class="row">
                                     <div class="col-xs-12 text-center">
                                         <span>Completed Appointments</span>
-                                       <?php $completed_ap = $this->db->where('doctor_status','completed')->count_all_results('doctor_appointments'); ?> 
+                                       <?php 
+                                            $offline_completed = $this->db->where('doctor_status','completed')->count_all_results('doctor_appointments'); 
+                                            $online_completed = $this->db->where('payment_status','completed')->count_all_results('online_doctor_appointments');
+                                            $completed_ap = $offline_completed + $online_completed;
+                                       ?> 
                                         <h2 class="font-bold"><?= $completed_ap ? $completed_ap : 0 ?></h2>
                                     </div>
                                 </div></a>
@@ -136,8 +143,7 @@
                     <form method="post" class="" enctype="multipart/form-data" action="<?php echo base_url(); ?>admin/doctors_appointments/searchorderdate">
                         <div class="col-md-2">
                             <label>From Date :</label>
-                            <input type="date" onchange="setTodate(this)" class="form-control" name="start_date" value="<?php  if ($start_date != '') { echo $start_date; }
-                            ?>" required="" oninvalid="this.setCustomValidity('Please Select From Date')">
+                            <input type="date" onchange="setTodate(this)" class="form-control" name="start_date" value="<?php echo $start_date; ?>" required="" oninvalid="this.setCustomValidity('Please Select From Date')">
                         </div>
                         <div class="col-md-2">
                             <label>To Date : </label>
@@ -185,12 +191,12 @@
                                     <td><?php
                                      $qry = $this->db->query("select * from users where id='".$v->patient_id."'");
                                      $users_row = $qry->row();
-                                     echo $users_row->first_name; ?>      
+                                     echo (isset($users_row) && isset($users_row->first_name)) ? $users_row->first_name : 'No User Found'; ?>      
                                     </td>
                                     <td><?php
                                      $qry = $this->db->query("select * from doctors where id='".$v->doctor_id."'");
                                      $doctors_row = $qry->row();
-                                     echo $doctors_row->doctor_name; ?>      
+                                     echo (isset($doctors_row) && isset($doctors_row->doctor_name)) ? $doctors_row->doctor_name : 'No Doctor Found'; ?>      
                                     </td>
                                     <td><?= $v->date?></td>
                                     <td><?= $v->time_slot_name?></td>

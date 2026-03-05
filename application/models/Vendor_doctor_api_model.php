@@ -1525,26 +1525,36 @@ class Vendor_doctor_api_model extends CI_Model {
 
 
     function total_appointments($date=NULL,$doctor_id){
-        $table = "doctor_appointments";
-        $this->db->select("id,date,doctor_status");
         $this->db->where("doctor_id",$doctor_id);
         if($date!='')
         {
            $this->db->where("date",$date);
         }
-       
-        //$this->db->where("doctor_status",'accept');
-        $data = $this->db->get($table)->num_rows();
-        return $data;
+        $offline = $this->db->get('doctor_appointments')->num_rows();
+
+        $this->db->where("doctor_id",$doctor_id);
+        $this->db->where('payment_status', 'completed');
+        if($date!='')
+        {
+           $this->db->where("date",$date);
+        }
+        $online = $this->db->get('online_doctor_appointments')->num_rows();
+
+        return $offline + $online;
     }
 
     function completed($date,$doctor_id){
-        $table = "doctor_appointments";
-        $this->db->select("id,date,doctor_status");
         $this->db->where("doctor_id",$doctor_id);
         $this->db->where("date",$date);
         $this->db->where("doctor_status",'completed');
-        return $this->db->get($table)->num_rows();
+        $offline = $this->db->get('doctor_appointments')->num_rows();
+
+        $this->db->where("doctor_id",$doctor_id);
+        $this->db->where("date",$date);
+        $this->db->where("payment_status",'completed');
+        $online = $this->db->get('online_doctor_appointments')->num_rows();
+
+        return $offline + $online;
     } 
     
       function total($date,$doctor_id){
@@ -1576,180 +1586,215 @@ class Vendor_doctor_api_model extends CI_Model {
     
     function day_schedules($doctor_id,$date){
 
-        $table = "doctor_appointments";
-        $this->db->select("id,patient_id,doctor_id,doctor_status,date,time_slot_name,time_slot_name,time_slot_value,consultation_fee,patient_name,patient_mobile,patient_age,patient_visiting_purpose,appointment_type");
+        $this->db->select("id,patient_id,doctor_id,doctor_status,date,time_slot_name,time_slot_value,consultation_fee,patient_name,patient_mobile,patient_age,patient_visiting_purpose,appointment_type, 'offline' as source");
         $this->db->where("doctor_id",$doctor_id); 
         $this->db->where("doctor_status",'accept'); 
-        if($date!='')
-        {
-            $this->db->where("date",$date);
-        }
-        
+        if($date!='') { $this->db->where("date",$date); }
         $this->db->order_by("id","desc");
-        $data = $this->db->get($table)->result();
+        $offline_data = $this->db->get('doctor_appointments')->result();
+
+        $this->db->select("id,patient_id,doctor_id,payment_status as doctor_status,date,time_slot_name,time_slot_value,consultation_fee,patient_name,patient_mobile,patient_age,patient_visiting_purpose,type as appointment_type, 'online' as source");
+        $this->db->where("doctor_id",$doctor_id); 
+        $this->db->where("payment_status",'completed'); 
+        if($date!='') { $this->db->where("date",$date); }
+        $this->db->order_by("id","desc");
+        $online_data = $this->db->get('online_doctor_appointments')->result();
+
+        $data = array_merge($offline_data, $online_data);
+        usort($data, function($a, $b) { return $b->id - $a->id; });
         
-        // echo $this->db->last_query();die; 
         if(count($data)>0){
             $array=[];
             foreach ($data as $value) {
-                $doctor_status=$value->doctor_status;
+                $orig_status=$value->doctor_status;
                
-                if ($doctor_status=='accept') {
+                if ($orig_status=='accept') {
                     $status="Accept";
                 }
-                 elseif($doctor_status=='active'){
-                    $status="Waiting for Doctor Acceptancy";
-                }
-                elseif ($doctor_status=='completed') {
+                elseif ($orig_status=='completed' || $orig_status == 'COMPLETED') {
                     $status="completed";
                 }
-                elseif ($doctor_status=='reject') {
+                elseif ($orig_status=='reject') {
                     $status="Cancelled";
                 }
+                else {
+                    $status = $orig_status;
+                }
+
                 $created_date=date("d M h:i A",strtotime($value->created_date));
                 $doctor_id=$value->doctor_id;
-                $doctor_status=$value->doctor_status;
-                $date=date("d M,Y",strtotime($value->date)); 
+                $date_disp=date("d M,Y",strtotime($value->date)); 
                 $consultation_fee = $value->consultation_fee;
                 $time_slot_value=$value->time_slot_value;
                 $patient_name=$value->patient_name;
                 $patient_mobile=$value->patient_mobile;
                 $appointment_type=$value->appointment_type;
             
-                $image = $this->db->select('image')->where(array('id'=>$value->patient_id))->get("users")->row()->image;
-                
-                
-                if(!empty($image)){
-                $patient_image = base_url()."uploads/users/".$image;
-                }
-                
-                else{
-                       $patient_image = base_url()."uploads/profile-icon-3.png";
-                }
-
+                $data_u = $this->db->select('image')->where(array('id'=>$value->patient_id))->get("users")->row();
+                $patient_image = ($data_u && !empty($data_u->image)) ? base_url()."uploads/users/".$data_u->image : base_url()."uploads/profile-icon-3.png";
                 
                 $data1 = $this->db->where(array('id'=>$doctor_id))->get("doctors")->row();
-               
-                $hospital_name = $data1->hospital_name;
-                $doctor_name = $data1->doctor_name;
-                $doctor_image = base_url()."uploads/doctors/".$data1->doctor_image;
-                $designations = $data1->designations;               
-                $designations_implode= $this->get_designation_names_csv($data1->designations); 
-                $blue_tick = $data1->blue_tick;
-                $doctor_rating = $data1->rating;
-                $total_users_reviewed = $data1->rating_count;  
-                
-                $array[]= array('id'=>$value->id,'hospital_name'=>$hospital_name,'doctor_name'=>$doctor_name,'doctor_image'=>$doctor_image,'designations'=>$designations_implode,'date'=>$date,'time_slot_value'=>$time_slot_value,'created_date'=>$created_date,'consultation_fee'=>$consultation_fee,'doctor_status'=>$status,'patient_name'=>$patient_name,'patient_mobile'=>$patient_mobile,'appointment_type'=>$appointment_type,'patient_image'=>$patient_image,'blue_tick'=>$blue_tick,'doctor_rating'=>$doctor_rating,'total_users_reviewed'=>$total_users_reviewed);  
+                if ($data1) {
+                    $hospital_name = $data1->hospital_name;
+                    $doctor_name = $data1->doctor_name;
+                    $doctor_image = base_url()."uploads/doctors/".$data1->doctor_image;
+                    $designations_implode= $this->get_designation_names_csv($data1->designations); 
+                    $blue_tick = $data1->blue_tick;
+                    $doctor_rating = $data1->rating;
+                    $total_users_reviewed = $data1->rating_count;  
+                    
+                    $array[]= array(
+                        'id'=>$value->id,
+                        'hospital_name'=>$hospital_name,
+                        'doctor_name'=>$doctor_name,
+                        'doctor_image'=>$doctor_image,
+                        'designations'=>$designations_implode,
+                        'date'=>$date_disp,
+                        'time_slot_value'=>$time_slot_value,
+                        'created_date'=>$created_date,
+                        'consultation_fee'=>$consultation_fee,
+                        'doctor_status'=>$status,
+                        'patient_name'=>$patient_name,
+                        'patient_mobile'=>$patient_mobile,
+                        'appointment_type'=>$appointment_type,
+                        'patient_image'=>$patient_image,
+                        'blue_tick'=>$blue_tick,
+                        'doctor_rating'=>$doctor_rating,
+                        'total_users_reviewed'=>$total_users_reviewed,
+                        'source' => isset($value->source) ? $value->source : 'offline'
+                    );  
+                }
             }
             if(count($array)>0)
             {   
+                // Counting for specific date (merged)
+                $target_date = ($date != '') ? $date : date("Y-m-d");
+
                 $this->db->where("doctor_id",$doctor_id);
-                $this->db->where("date",$date);
-                $today_appointments = $this->db->get("doctor_appointments")->num_rows();
+                $this->db->where("date",$target_date);
+                $off_today = $this->db->get("doctor_appointments")->num_rows();
+
+                $this->db->where("doctor_id",$doctor_id);
+                $this->db->where("date",$target_date);
+                $this->db->where('payment_status', 'completed');
+                $on_today = $this->db->get("online_doctor_appointments")->num_rows();
+
+                $today_appointments = $off_today + $on_today;
 
                 $datetime = new DateTime('tomorrow');
                 $tomorrow_date = $datetime->format('Y-m-d');
 
+                $this->db->where("doctor_id",$doctor_id);
+                $this->db->where("date",$tomorrow_date);
+                $off_tom = $this->db->get("doctor_appointments")->num_rows();
 
                 $this->db->where("doctor_id",$doctor_id);
                 $this->db->where("date",$tomorrow_date);
-                $tomorrow_appointments = $this->db->get("doctor_appointments")->num_rows();
+                $this->db->where('payment_status', 'completed');
+                $on_tom = $this->db->get("online_doctor_appointments")->num_rows();
+
+                $tomorrow_appointments = $off_tom + $on_tom;
 
                 $ar = array('status' =>TRUE,'data'=>$array,'today_appointments'=>$today_appointments,'tomorrow_appointments'=>$tomorrow_appointments);
                 return $ar;
             }
-            else
-            {
-                $ar = array('status'=>FALSE,'message'=>"No data found");
-                return $ar; 
-            } 
         }
-         else
-        {
-            $ar = array('status'=>FALSE,'message'=>"No data found");
-            return $ar;
-        }   
+        
+        return array('status'=>FALSE,'message'=>"No data found");
     }  
 
     function patient_management($doctor_id,$doctor_status){
 
-        $table = "doctor_appointments";
-        $this->db->select("id,patient_id,doctor_id,doctor_status,date,time_slot_name,time_slot_name,time_slot_value,consultation_fee,patient_name,patient_mobile,patient_age,patient_visiting_purpose,appointment_type");
+        // Offline records
+        $this->db->select("id,patient_id,doctor_id,doctor_status,date,time_slot_name,time_slot_value,consultation_fee,patient_name,patient_mobile,patient_age,patient_visiting_purpose,appointment_type,created_date, 'offline' as source");
         $this->db->where("doctor_id",$doctor_id);
         $this->db->where("doctor_status",$doctor_status);
         $this->db->order_by("id","desc");
-        $data = $this->db->get($table)->result();
-        
-        // echo $this->db->last_query();die;
+        $offline_data = $this->db->get("doctor_appointments")->result();
+
+        // Online records (completed only)
+        $online_data = [];
+        if ($doctor_status == 'completed') {
+            $this->db->select("id,patient_id,doctor_id,payment_status as doctor_status,date,time_slot_name,time_slot_value,consultation_fee,patient_name,patient_mobile,patient_age,patient_visiting_purpose,type as appointment_type,created_date, 'online' as source");
+            $this->db->where("doctor_id",$doctor_id);
+            $this->db->where("payment_status",'completed');
+            $this->db->order_by("id","desc");
+            $online_data = $this->db->get("online_doctor_appointments")->result();
+        }
+
+        $data = array_merge($offline_data, $online_data);
+        usort($data, function($a, $b) { return $b->id - $a->id; });
+
         if(count($data)>0){
             $array=[];
             foreach ($data as $value) {
                 
-                $image = $this->db->select('image')->where(array('id'=>$value->patient_id))->get("users")->row()->image;
-                
-                if(!empty($image)){
-                      $patient_image = base_url()."uploads/users/".$image;
+                $data_u = $this->db->select('image')->where(array('id'=>$value->patient_id))->get("users")->row();
+                if($data_u && !empty($data_u->image)){
+                      $patient_image = base_url()."uploads/users/".$data_u->image;
                 }
-                
                 else{
                       $patient_image = base_url()."uploads/profile-icon-3.png";
                 }
 
-                
-                 
-                
                 $patient_name = $value->patient_name;
                 $patient_mobile = $value->patient_mobile;
                 $patient_age = $value->patient_age;
                 $patient_visiting_purpose = $value->patient_visiting_purpose;
                 $appointment_type = $value->appointment_type;
-                $doctor_status=$value->doctor_status;
-                if ($doctor_status=='completed') {
-                    $status="Completed";
+                $orig_status=$value->doctor_status;
+                
+                if ($orig_status=='completed' || $orig_status == 'COMPLETED') {
+                    $display_status="Completed";
                 }
-                elseif ($doctor_status=='reject') {
-                    $status="Cancelled";
+                elseif ($orig_status=='reject') {
+                    $display_status="Cancelled";
                 }
+                else {
+                    $display_status = $orig_status;
+                }
+
                 $created_date=date("d M h:i A",strtotime($value->created_date));
                 $doctor_id=$value->doctor_id;
                 $date=date("d M,Y",strtotime($value->date)); 
                 $consultation_fee = $value->consultation_fee;
                 $time_slot_value=$value->time_slot_value;
-                /*if($value->time_slot_name=='morning'){
-                     $time_slot_value=$time_slot_value.":00 AM";
-                }   
-                else if($value->time_slot_name=='afternoon'){
-                     $time_slot_value=$time_slot_value.":00 PM";
-                } 
-                elseif ($value->time_slot_name=='evening') {
-                     $time_slot_value=$time_slot_value.":00 PM";
-                } */
-                $table_doctor = "doctors";
-                $data1 = $this->db->where(array('id'=>$doctor_id))->get($table_doctor)->row();
-                $hospital_name = $data1->hospital_name;
-                $doctor_name = $data1->doctor_name;
-                $doctor_image = base_url()."uploads/doctors/".$data1->doctor_image;
-                $designations = $data1->designations;               
-                $designations_implode= $this->get_designation_names_csv($data1->designations); 
                 
-                $array[]= array('id'=>$value->id,'hospital_name'=>$hospital_name,'doctor_name'=>$doctor_name,'doctor_image'=>$doctor_image,'designations'=>$designations_implode,'date'=>$date,'time_slot_value'=>$time_slot_value,'created_date'=>$created_date,'consultation_fee'=>$consultation_fee,'doctor_status'=>$status,'patient_name'=>$patient_name,'patient_mobile'=>$patient_mobile,'patient_age'=>$patient_age,'patient_visiting_purpose'=>$patient_visiting_purpose,'appointment_type'=>$appointment_type,'patient_image'=>$patient_image); 
+                $data1 = $this->db->where(array('id'=>$doctor_id))->get("doctors")->row();
+                if ($data1) {
+                    $hospital_name = $data1->hospital_name;
+                    $doctor_name = $data1->doctor_name;
+                    $doctor_image = base_url()."uploads/doctors/".$data1->doctor_image;
+                    $designations_implode= $this->get_designation_names_csv($data1->designations); 
+                    
+                    $array[]= array(
+                        'id'=>$value->id,
+                        'hospital_name'=>$hospital_name,
+                        'doctor_name'=>$doctor_name,
+                        'doctor_image'=>$doctor_image,
+                        'designations'=>$designations_implode,
+                        'date'=>$date,
+                        'time_slot_value'=>$time_slot_value,
+                        'created_date'=>$created_date,
+                        'consultation_fee'=>$consultation_fee,
+                        'doctor_status'=>$display_status,
+                        'patient_name'=>$patient_name,
+                        'patient_mobile'=>$patient_mobile,
+                        'patient_age'=>$patient_age,
+                        'patient_visiting_purpose'=>$patient_visiting_purpose,
+                        'appointment_type'=>$appointment_type,
+                        'patient_image'=>$patient_image,
+                        'source' => isset($value->source) ? $value->source : 'offline'
+                    ); 
+                }
             }
             if(count($array)>0)
             {   
-                $ar = array('status' =>TRUE,'data'=>$array);
-                return $ar;
+                return array('status' =>TRUE,'data'=>$array);
             }
-            else
-            {
-                $ar = array('status'=>FALSE,'message'=>"No data found");
-                return $ar; 
-            } 
         }
-         else
-        {
-            $ar = array('status'=>FALSE,'message'=>"No data found");
-            return $ar;
-        }
+        
+        return array('status'=>FALSE,'message'=>"No data found");
     }  
 
      function waiting_accepting($doctor_id,$doctor_status){
@@ -1832,118 +1877,121 @@ class Vendor_doctor_api_model extends CI_Model {
 
     function my_dashboard($doctor_id){ 
 
-         $table = "doctor_appointments";
-        $this->db->select("id,doctor_id,doctor_status,date, time_slot_name, time_slot_value,consultation_fee,created_date,patient_id,patient_name,appointment_type,doctor_status,appointment_type");
+        $this->db->select("id,doctor_id,doctor_status,date, time_slot_name, time_slot_value,consultation_fee,created_date,patient_id,patient_name,appointment_type,doctor_status, 'offline' as source");
         $this->db->where("doctor_id",$doctor_id);
         $this->db->order_by("id","desc");
-        $data = $this->db->get($table)->result();
-        // echo $this->db->last_query();die; 
+        $offline_data = $this->db->get('doctor_appointments')->result();
+
+        $this->db->select("id,doctor_id,payment_status as doctor_status,date, time_slot_name, time_slot_value,consultation_fee,created_date,patient_id,patient_name,type as appointment_type, 'online' as source");
+        $this->db->where("doctor_id",$doctor_id);
+        $this->db->where('payment_status', 'completed');
+        $this->db->order_by("id","desc");
+        $online_data = $this->db->get('online_doctor_appointments')->result();
+
+        $data = array_merge($offline_data, $online_data);
+
+        // Sort by id desc after merge if needed, but array_merge is okay for now
+        usort($data, function($a, $b) {
+            return $b->id - $a->id;
+        });
+
         if(count($data)>0){
             $array=[];
             foreach ($data as $value) {
                 
-               $data2 = $this->db->select('image')->where('id',$value->patient_id)->get('users')->row();
-               if($data2->image!='')
+               $data_u = $this->db->select('image')->where('id',$value->patient_id)->get('users')->row();
+               if($data_u && $data_u->image!='')
                {
-                   $patient_image = base_url()."uploads/users/".$data2->image;
+                   $patient_image = base_url()."uploads/users/".$data_u->image;
                }
                else{
                    $patient_image =  base_url()."uploads/profile-icon-3.png";
                }
                 
-                $doctor_status=$value->doctor_status;
-                if($doctor_status=='active'){
+                $orig_status=$value->doctor_status;
+                if($orig_status=='active' || $orig_status == 'pending'){
                     $status="Waiting for Doctor Acceptancy";
                 }
-                elseif ($doctor_status=='accept') {
+                elseif ($orig_status=='accept') {
                     $status="Booking Accepted";
                 }
-                elseif ($doctor_status=='completed') {
+                elseif ($orig_status=='completed' || $orig_status == 'COMPLETED') {
                     $status="completed";
                 }
-                elseif ($doctor_status=='reject') {
+                elseif ($orig_status=='reject') {
                     $status="Cancelled";
                 }
+                else {
+                    $status = $orig_status;
+                }
+
                 $created_date=date("d M h:i A",strtotime($value->created_date));
                 $doctor_id=$value->doctor_id;
-                $doctor_status=$value->doctor_status;
                 $date=date("d M,Y",strtotime($value->date)); 
                 $consultation_fee = $value->consultation_fee;
                 $time_slot_value=$value->time_slot_value;
 
                 
                 $data1 = $this->db->where(array('id'=>$doctor_id))->get("doctors")->row();
-                
-                $hospital_name = $data1->hospital_name;
-                $doctor_name = $data1->doctor_name;
-                $doctor_image = base_url()."uploads/doctors/".$data1->doctor_image;
-                $designations = $data1->designations;               
-                $designations_implode= $this->get_designation_names_csv($data1->designations); 
-                
-                $patient_name=$value->patient_name;
-                $appointment_type=$value->appointment_type;
-                       
-                $blue_tick= $data1->blue_tick ;
-         
-                $doctor_rating = $data1->rating;
-                $total_users_reviewed = $data1->rating_count;
-                
-                $doctor_status=$value->doctor_status;
-                  
-                
-                
-                $array[]= array('id'=>$value->id,'hospital_name'=>$hospital_name,'doctor_name'=>$doctor_name,'doctor_image'=>$doctor_image,'designations'=>$designations_implode,'date'=>$date,'time_slot_value'=>$time_slot_value,'created_date'=>$created_date,'consultation_fee'=>$consultation_fee,'blue_tick'=>$blue_tick,'doctor_rating'=>$doctor_rating,'total_users_reviewed'=>$total_users_reviewed, 'doctor_status'=>$status,'patient_name'=>$patient_name,'appointment_type'=>$appointment_type,'patient_image'=>$patient_image);  
+                if ($data1) {
+                    $hospital_name = $data1->hospital_name;
+                    $doctor_name = $data1->doctor_name;
+                    $doctor_image = base_url()."uploads/doctors/".$data1->doctor_image;
+                    $designations_implode= $this->get_designation_names_csv($data1->designations); 
+                    
+                    $patient_name=$value->patient_name;
+                    $appointment_type=$value->appointment_type;
+                           
+                    $blue_tick= $data1->blue_tick ;
+                    $doctor_rating = $data1->rating;
+                    $total_users_reviewed = $data1->rating_count;
+                    
+                    $array[]= array(
+                        'id'=>$value->id,
+                        'hospital_name'=>$hospital_name,
+                        'doctor_name'=>$doctor_name,
+                        'doctor_image'=>$doctor_image,
+                        'designations'=>$designations_implode,
+                        'date'=>$date,
+                        'time_slot_value'=>$time_slot_value,
+                        'created_date'=>$created_date,
+                        'consultation_fee'=>$consultation_fee,
+                        'blue_tick'=>$blue_tick,
+                        'doctor_rating'=>$doctor_rating,
+                        'total_users_reviewed'=>$total_users_reviewed, 
+                        'doctor_status'=>$status,
+                        'patient_name'=>$patient_name,
+                        'appointment_type'=>$appointment_type,
+                        'patient_image'=>$patient_image,
+                        'source' => isset($value->source) ? $value->source : 'offline'
+                    );  
+                }
             }
             if(count($array)>0)
             {   
+                // Today's total consultation fee (merged)
+                $today = date("Y-m-d");
                 
-
-               /* $datetime = new DateTime('tomorrow');
-                $tomorrow_date = $datetime->format('Y-m-d');
-
-
+                $this->db->select("SUM(consultation_fee) as fee");
                 $this->db->where("doctor_id",$doctor_id);
-                $this->db->where("date",$tomorrow_date);
-                $tomorrow_appointments = $this->db->get("doctor_appointments")->num_rows();*/
+                $this->db->where("date",$today);
+                $this->db->where("doctor_status",'completed');
+                $offline_fee = $this->db->get("doctor_appointments")->row()->fee;
 
+                $this->db->select("SUM(consultation_fee) as fee");
+                $this->db->where("doctor_id",$doctor_id);
+                $this->db->where("date",$today);
+                $this->db->where("payment_status",'completed');
+                $online_fee = $this->db->get("online_doctor_appointments")->row()->fee;
 
+                $total_today_fee = (float)$offline_fee + (float)$online_fee;
 
-                                      $this->db->select("SUM(consultation_fee) as today_consultation_fee");
-                                      $this->db->where("doctor_id",$doctor_id);
-                                      $this->db->where("date",date("Y-m-d"));
-                                      $this->db->where("doctor_status",'completed');
-                $today_appointments = $this->db->get("doctor_appointments")->row();
-                
-
-                                     /* $this->db->select("SUM(consultation_fee) as total_consultation_fee");
-                                      $this->db->where("doctor_id",$doctor_id);
-                                      $this->db->where("date",date("Y-m-d"));
-                                      //$this->db->where("doctor_status",'completed');
-                $tomorrow_appointments = $this->db->get("doctor_appointments")->row();*/
-
-                if($today_appointments->today_consultation_fee!='' || $today_appointments->today_consultation_fee!=NULL)
-                {
-                  $today_consultation_fee = $today_appointments->today_consultation_fee;
-                }
-                else
-                {
-                  $today_consultation_fee ="0";
-                }
-
-                $ar = array('status' =>TRUE,'data'=>$array,'today_consultation_fee'=>$today_consultation_fee);
+                $ar = array('status' =>TRUE,'data'=>$array,'today_consultation_fee'=>(string)$total_today_fee);
                 return $ar;
             }
-            else
-            {
-                $ar = array('status'=>FALSE,'message'=>"No data found");
-                return $ar; 
-            } 
         }
-         else
-        {
-            $ar = array('status'=>FALSE,'message'=>"No data found");
-            return $ar;
-        } 
+        
+        return array('status'=>FALSE,'message'=>"No data found");
     }  
 
 
@@ -2007,122 +2055,105 @@ class Vendor_doctor_api_model extends CI_Model {
     }  
 
 
-    function appointmentDetails($doctor_id,$appointment_id)
+    function appointmentDetails($doctor_id, $appointment_id)
     {
-    
-        $this->db->where("doctor_id",$doctor_id);
-        $this->db->where("id",$appointment_id);
-        // $this->db->where("doctor_status",'accept');
+        // Try offline first
+        $this->db->select("*, 'offline' as source");
+        $this->db->where("doctor_id", $doctor_id);
+        $this->db->where("id", $appointment_id);
         $data = $this->db->get("doctor_appointments")->row();
-        
-        // print_r($data);die;
-        
-        // getting patient image based on patient id
-        
-          $image = $this->db->select('image')->where(array('id'=>$data->patient_id))->get("users")->row()->image;
-                
-                
-                if(!empty($image)){
-                $patient_image = base_url()."uploads/users/".$image;
-                }
-                
-                else{
-                       $patient_image = base_url()."uploads/profile-icon-3.png";
-                }
-        
 
-        $doctor_details = $this->db->where(array('id'=>$data->doctor_id))->get("doctors")->row();
-        
-        $data->blue_tick = $doctor_details->blue_tick ;
-         
-          
-        $data->doctor_rating = $doctor_details->rating;
-        $data->total_users_reviewed = $doctor_details->rating_count;
-        $data->doctor_mobile_number = $doctor_details->mobile_number;
-        $data->patient_image = $patient_image;
-        $data->doctor_image = base_url()."uploads/doctors/".$doctor_details->doctor_image;
-
-        $data->hospital_name = $doctor_details->hospital_name;
-
-        $data->date = date("d-m-Y",strtotime($data->date));
-        $data->doctor_name = $doctor_details->doctor_name;
-         $data->address = $doctor_details->address;
-          $designations = $doctor_details->designations;
-          $ex_designations = explode(',', $designations);
-          $designations_name=[];
-          foreach ($ex_designations as $designation_value) 
-          {
-             $designations_name[] = $this->db->where(array('id'=>$designation_value))->get("designations")->row()->name;
-          }
-        $data->designation = implode(",", $designations_name);
-        
-
-                if ($data->doctor_status=='reject') 
-                {
-                    if($data->rejected_by=="Doctor"){
-                        $data->rejected_by = "You";
-                    }
-                    else
-                    {
-                         $data->rejected_by = "Patient";
-                    }
-
-                }
-        
-         
-                $this->db->where("appointment_id",$appointment_id);
-        $chk =  $this->db->get("patient_prescription")->row();    
-        
-           
-                       $this->db->select('id');
-                       $this->db->where("appointment_id",$appointment_id);
-        $pa_pres_id =  $this->db->get("patient_prescription")->row();  
-        
-          
-         
-                       $this->db->where("patient_prescription_id",$pa_pres_id->id);
-               $chk_sts =  $this->db->get("eprescription")->result();   
-                
-        if($chk && $chk_sts ){
-            $data->invoice_download_ready = true;
+        if (!$data) {
+            // Try online (completed only)
+            $this->db->select("*, payment_status as doctor_status, type as appointment_type, 'online' as source");
+            $this->db->where("doctor_id", $doctor_id);
+            $this->db->where("id", $appointment_id);
+            $this->db->where('payment_status', 'completed');
+            $data = $this->db->get("online_doctor_appointments")->row();
         }
-        else{
+
+        if ($data) {
+            // Patient details
+            $data_u = $this->db->select('image')->where(array('id' => $data->patient_id))->get("users")->row();
+            $patient_image = ($data_u && !empty($data_u->image)) ? base_url() . "uploads/users/" . $data_u->image : base_url() . "uploads/profile-icon-3.png";
+            $data->patient_image = $patient_image;
+
+            // Doctor details
+            $doctor_details = $this->db->where(array('id' => $data->doctor_id))->get("doctors")->row();
+            if ($doctor_details) {
+                $data->blue_tick = $doctor_details->blue_tick;
+                $data->doctor_rating = $doctor_details->rating;
+                $data->total_users_reviewed = $doctor_details->rating_count;
+                $data->doctor_mobile_number = $doctor_details->mobile_number;
+                $data->doctor_image = base_url() . "uploads/doctors/" . $doctor_details->doctor_image;
+                $data->hospital_name = $doctor_details->hospital_name;
+                $data->doctor_name = $doctor_details->doctor_name;
+                $data->address = $doctor_details->address;
+
+                $designations = $doctor_details->designations;
+                $ex_designations = explode(',', $designations);
+                $designations_name = [];
+                foreach ($ex_designations as $designation_value) {
+                    $designations_row = $this->db->where(array('id' => $designation_value))->get("designations")->row();
+                    if ($designations_row) {
+                        $designations_name[] = $designations_row->name;
+                    }
+                }
+                $data->designation = implode(",", $designations_name);
+            }
+
+            $data->date = date("d-m-Y", strtotime($data->date));
+
+            if ($data->doctor_status == 'reject') {
+                if (isset($data->rejected_by) && $data->rejected_by == "Doctor") {
+                    $data->rejected_by = "You";
+                } else {
+                    $data->rejected_by = "Patient";
+                }
+            }
+
+            // Prescription check
+            $this->db->where("appointment_id", $appointment_id);
+            $chk = $this->db->get("patient_prescription")->row();
+
             $data->invoice_download_ready = false;
-        }
-        
-        
-                       $this->db->select('id');
-                       $this->db->where("appointment_id",$appointment_id);
-        $pa_pres_id =  $this->db->get("patient_prescription")->row();  
-        
-          
-         
-                       $this->db->where("patient_prescription_id",$pa_pres_id->id);
-               $sts =  $this->db->get("lab_tests")->result();  
-     
-        if($sts){
-            $data->labtest_invoice_download_ready = true;
-        }
-        else{
+            if ($chk) {
+                $this->db->select('id');
+                $this->db->where("appointment_id", $appointment_id);
+                $pa_pres_id = $this->db->get("patient_prescription")->row();
+
+                if ($pa_pres_id) {
+                    $this->db->where("patient_prescription_id", $pa_pres_id->id);
+                    $chk_sts = $this->db->get("eprescription")->result();
+                    if ($chk_sts) {
+                        $data->invoice_download_ready = true;
+                    }
+                }
+            }
+
+            // Lab test check
             $data->labtest_invoice_download_ready = false;
+            $this->db->select('id');
+            $this->db->where("appointment_id", $appointment_id);
+            $pa_pres_id_lab = $this->db->get("patient_prescription")->row();
+            if ($pa_pres_id_lab) {
+                $this->db->where("patient_prescription_id", $pa_pres_id_lab->id);
+                $sts = $this->db->get("lab_tests")->result();
+                if ($sts) {
+                    $data->labtest_invoice_download_ready = true;
+                }
+            }
+
+            if (isset($data->completed_date) && $data->completed_date != "0000-00-00 00:00:00" && $data->completed_date != "") {
+                $data->completed_date = $data->completed_date;
+            } else {
+                $data->completed_date = "";
+            }
+
+            return array('status' => TRUE, 'data' => $data);
+        } else {
+            return array('status' => FALSE, 'message' => "No data found");
         }
-
-
-        if($data->completed_date!="0000-00-00 00:00:00")
-        {
-          $data->completed_date=$data->completed_date;
-        }
-        else
-        {
-          $data->completed_date="";
-        }
-
-
-        $ar = array('status' =>TRUE,'data'=>$data);
-        return $ar;
-           
-        
-    
     }
     
     
@@ -2225,14 +2256,19 @@ class Vendor_doctor_api_model extends CI_Model {
     }
     
      function accept_count($doctor_id){
-        $table = "doctor_appointments";
         $date = date('Y-m-d');
-        $this->db->select("id,doctor_status");
+
         $this->db->where("doctor_id",$doctor_id);
         $this->db->where("date>=",$date);
         $this->db->where("doctor_status",'accept');
-        return $this->db->get($table)->num_rows();
-      
+        $offline = $this->db->get('doctor_appointments')->num_rows();
+
+        $this->db->where("doctor_id",$doctor_id);
+        $this->db->where("date>=",$date);
+        $this->db->where('payment_status', 'completed');
+        $online = $this->db->get('online_doctor_appointments')->num_rows();
+
+        return $offline + $online;
     }
     
     function eprescription_count($appointment_id){
@@ -2334,24 +2370,32 @@ class Vendor_doctor_api_model extends CI_Model {
 
 
     function appointment_cancel($patient_id,$appointment_id,$reason,$comments){
-
         $data =array('reason'=>$reason,'comments'=>$comments,'doctor_status'=>'reject','rejected_by'=>"Doctor");
         $where = array('id'=>$appointment_id);
-        $table = "doctor_appointments";
+        
+        $table = 'doctor_appointments';
+        $appoint_row = $this->db->where(array('id'=>$appointment_id))->get($table)->row();
+        
+        if(!$appoint_row) {
+            $table = 'online_doctor_appointments';
+            $appoint_row = $this->db->where(array('id'=>$appointment_id))->get($table)->row();
+        }
+
+        if(!$appoint_row) {
+            return array('status'=>FALSE,'message'=>"Invalid appointment");
+        }
+
         $res = $this->db->update($table,$data,$where);
         //echo $this->db->last_query(); die;
         if($res)
         {
-            $appoint_row = $this->db->where(array('id'=>$appointment_id))->get('doctor_appointments')->row();
                 $message="Dear ".$appoint_row->patient_name." your booking no.".$appointment_id." is cancelled by doctor.Thanks & Regards...! DOCTTO";
                 $title = "Appointment cancelled";
             $this->doNotifications($appointment_id,$appoint_row->doctor_id,$patient_id,$message,$title);
 
-
             $otp_message = "Dear ".$appoint_row->patient_name." your booking no.".$appointment_id." is cancelled by doctor.Thanks & Regards...! DOCTTO";
             $template_id = '1407168691901670711';
-            $this->user->send_message($otp_message,$appoint_row->patient_mobile,$template_id);
-
+            $this->User->send_message($otp_message,$appoint_row->patient_mobile,$template_id);
 
             $arr = array('status'=>TRUE,'message'=>"Appointment cancelled successfully");
             return $arr;    
@@ -2365,20 +2409,34 @@ class Vendor_doctor_api_model extends CI_Model {
 
      function appointmentComplete($patient_id,$appointment_id){
         $cdate=date('Y-m-d H:i:s');
-        $data =array('doctor_status'=>'completed','completed_date'=>$cdate);
         $where = array('id'=>$appointment_id);
-        $res = $this->db->update("doctor_appointments",$data,$where);
+        
+        $table = 'doctor_appointments';
+        $appoint_row = $this->db->where(array('id'=>$appointment_id))->get($table)->row();
+        
+        if(!$appoint_row) {
+            $table = 'online_doctor_appointments';
+            $appoint_row = $this->db->where(array('id'=>$appointment_id))->get($table)->row();
+            $data = array('doctor_status'=>'completed');
+        } else {
+            $data = array('doctor_status'=>'completed','completed_date'=>$cdate);
+        }
+
+        if(!$appoint_row) {
+            return array('status'=>FALSE,'message'=>"Invalid appointment");
+        }
+
+        $res = $this->db->update($table,$data,$where);
         //echo $this->db->last_query(); die;
         if($res)
         {
-             $appoint_row = $this->db->where(array('id'=>$appointment_id))->get('doctor_appointments')->row();
                 $message="Dear ".$appoint_row->patient_name." your booking no.".$appointment_id." is completed successfully, Please login into your dashboard. Thanks & Regards...! DOCTTO";
                 $title = "Appointment completed";
             $this->doNotifications($appointment_id,$appoint_row->doctor_id,$patient_id,$message,$title);
 
             $otp_message ="Dear ".$appoint_row->patient_name." your booking no.".$appointment_id." is completed successfully, Please login into your dashboard. Thanks & Regards...! DOCTTO";
             $template_id = '1407168691893540432';
-            $this->user->send_message($otp_message,$appoint_row->patient_mobile,$template_id);
+            $this->User->send_message($otp_message,$appoint_row->patient_mobile,$template_id);
 
             $arr = array('status'=>TRUE,'message'=>"Appointment completed successfully");
             return $arr;    
@@ -2403,21 +2461,45 @@ class Vendor_doctor_api_model extends CI_Model {
 
     function acceptAppointment($doctor_id,$appointment_id){
 
-   
-        $data =array('doctor_status'=>'accept');
-        $where = array('id'=>$appointment_id);
-        $res = $this->db->update('doctor_appointments',$data,$where);
+        $table = '';
+        $valid = FALSE;
+
+        $this->db->where('id', $appointment_id);
+        $this->db->where('doctor_id', $doctor_id);
+        $this->db->where('doctor_status', 'active');
+        $valid = $this->db->get('doctor_appointments')->row();
+        if($valid) {
+            $table = 'doctor_appointments';
+        }
+
+        if (!$valid) {
+            $this->db->where('id', $appointment_id);
+            $this->db->where('doctor_id', $doctor_id);
+            $this->db->where('doctor_status', 'active');
+            $valid = $this->db->get('online_doctor_appointments')->row();
+            if($valid) {
+                $table = 'online_doctor_appointments';
+            }
+        }
+
+        if (!$valid) {
+            return array('status' => FALSE, 'message' => "Invalid appointment or already processed");
+        }
+
+        $data  = array('doctor_status' => 'accept');
+        $where = array('id' => $appointment_id, 'doctor_id' => $doctor_id);
+        $res   = $this->db->update($table, $data, $where);
         //echo $this->db->last_query(); die;
         if($res)
         {
-            $appoint_row = $this->db->where(array('id'=>$appointment_id))->get('doctor_appointments')->row();
-                $message="Dear ".$appoint_row->patient_name." your booking no.".$appointment_id." is acepted successfully, Please login into your dashboard. Thanks & Regards...! DOCTTO";
+            $appoint_row = $valid;
+                $message="Dear ".$appoint_row->patient_name." your booking no.".$appointment_id." is accepted successfully, Please login into your dashboard. Thanks & Regards...! DOCTTO";
                 $title = "Appointment Accepted";
             $this->doNotifications($appointment_id,$doctor_id,$appoint_row->patient_id,$message,$title);
 
-            $otp_message = "Dear ".$appoint_row->patient_name." your booking no.".$appointment_id." is acepted successfully, Please login into your dashboard. Thanks & Regards...! DOCTTO";
+            $otp_message = "Dear ".$appoint_row->patient_name." your booking no.".$appointment_id." is accepted successfully, Please login into your dashboard. Thanks & Regards...! DOCTTO";
             $template_id = '1407168691889847853';
-            $this->user->send_message($otp_message,$appoint_row->patient_mobile,$template_id);
+            $this->User->send_message($otp_message,$appoint_row->patient_mobile,$template_id);
 
             $arr = array('status'=>TRUE,'message'=>"Appointment accepted successfully");
             return $arr;    
@@ -2428,6 +2510,7 @@ class Vendor_doctor_api_model extends CI_Model {
             return $arr;  
         }
     }
+
     
      function update_doctor_details($doctor_id,$doctor_name,$doctor_image,$cover_image,$digital_signature,$designations,$experience,$mobile_number,$aboutus,$gender,$doctor_license_no,$voice_call,$video_call,$morning_start_time=null,$morning_end_time=null,$afternoon_start_time=null,$afternoon_end_time=null,$evening_start_time=null,$evening_end_time=null,$bank_name,$account_holder_name,$account_number,$retype_account_number,$ifsc_code,$chat_price=NULL,$specialisation=NULL,$specialist_in=NULL)
      {
@@ -2960,52 +3043,52 @@ class Vendor_doctor_api_model extends CI_Model {
 
     function earnings($doctor_id,$start_date=null,$end_date=null,$filter_status=NULL)
     {
-               
-        if($filter_status=='daily')
-        {
-                $today_date = date("Y-m-d");
-                $this->db->where("date",$today_date);
-        }
-        else if($filter_status=='weekly')
-        {
-            $date_first = date("Y-m-d",strtotime('monday this week'));
-            $date_last = date("Y-m-d",strtotime("sunday this week"));  
-            $this->db->where("date>=",$date_first);
-                            $this->db->where("date<=",$date_last);
-        }
-        else if($filter_status=='monthly')
-        {
-             $month_date = date("Y-m");
-              $this->db->like("date", $month_date,'both');
-        }
-        else if($filter_status=='other')
-        {
-                  if($start_date!='')
-                  {
-                       $this->db->where("date>=",$start_date);
-                  
-                       $this->db->where("date<=",$end_date);
-                  }
-        }
-        
-        $this->db->select("id,patient_id,doctor_id,doctor_status,date,time_slot_name,time_slot_name,time_slot_value,consultation_fee,patient_name,patient_mobile,patient_age,patient_visiting_purpose,appointment_type");
+        // Offline filters
+        $this->db->select("id,patient_id,doctor_id,doctor_status,date,time_slot_name,time_slot_value,consultation_fee,patient_name,patient_mobile,patient_age,patient_visiting_purpose,appointment_type, 'offline' as source");
         $this->db->where("doctor_id",$doctor_id);
         $this->db->where("doctor_status",'completed');
-        $this->db->order_by("id","desc");
-        $data = $this->db->get("doctor_appointments")->result();
         
-    //   echo $this->db->last_query();die;
+        if($filter_status=='daily') {
+            $this->db->where("date", date("Y-m-d"));
+        } else if($filter_status=='weekly') {
+            $this->db->where("date>=", date("Y-m-d",strtotime('monday this week')));
+            $this->db->where("date<=", date("Y-m-d",strtotime("sunday this week")));
+        } else if($filter_status=='monthly') {
+            $this->db->like("date", date("Y-m"),'both');
+        } else if($filter_status=='other' && $start_date!='') {
+            $this->db->where("date>=",$start_date);
+            $this->db->where("date<=",$end_date);
+        }
+        $offline_data = $this->db->get("doctor_appointments")->result();
+
+        // Online filters
+        $this->db->select("id,patient_id,doctor_id,payment_status as doctor_status,date,time_slot_name,time_slot_value,consultation_fee,patient_name,patient_mobile,patient_age,patient_visiting_purpose,type as appointment_type, 'online' as source");
+        $this->db->where("doctor_id",$doctor_id);
+        $this->db->where("payment_status",'completed');
         
+        if($filter_status=='daily') {
+            $this->db->where("date", date("Y-m-d"));
+        } else if($filter_status=='weekly') {
+            $this->db->where("date>=", date("Y-m-d",strtotime('monday this week')));
+            $this->db->where("date<=", date("Y-m-d",strtotime("sunday this week")));
+        } else if($filter_status=='monthly') {
+            $this->db->like("date", date("Y-m"),'both');
+        } else if($filter_status=='other' && $start_date!='') {
+            $this->db->where("date>=",$start_date);
+            $this->db->where("date<=",$end_date);
+        }
+        $online_data = $this->db->get("online_doctor_appointments")->result();
+
+        $data = array_merge($offline_data, $online_data);
+        usort($data, function($a, $b) { return $b->id - $a->id; });
         
-        // echo $this->db->last_query(); die;
         if(count($data)>0){
             $array=[];
             $total_consultation_fee=0;
             foreach ($data as $value) {
-
-               
+                $created_date=date("d M h:i A",strtotime($value->created_date));
                 $doctor_id=$value->doctor_id;
-                $date=date("d M,Y",strtotime($value->date)); 
+                $date_disp=date("d M,Y",strtotime($value->date)); 
                 $consultation_fee = $value->consultation_fee;
                 $time_slot_value=$value->time_slot_value;
                 $time_slot_name=$value->time_slot_name;
@@ -3013,75 +3096,56 @@ class Vendor_doctor_api_model extends CI_Model {
                 $patient_mobile=$value->patient_mobile;
                 $patient_age=$value->patient_age;
                 $patient_visiting_purpose=$value->patient_visiting_purpose;
-                $doctor_status=$value->doctor_status;
                 $appointment_type=$value->appointment_type;
-                $patient_image = $this->db->where(array('id'=>$value->patient_id))->get("users")->row()->image;
-               
                 
-              
-                  if($patient_image!='')
-                  {
-                    $patient_image = base_url()."uploads/users/". $patient_image;
-                  }
-                  else
-                  {
-                    $patient_image = base_url()."uploads/profile-icon-3.png";
-                  }
-                
-                
-                
-                // print_r($image);die;
-                
-                /*if($value->time_slot_name=='morning'){
-                     $time_slot_value=$time_slot_value.":00 AM";
-                }   
-                else if($value->time_slot_name=='afternoon'){
-                     $time_slot_value=$time_slot_value.":00 PM";
-                } 
-                elseif ($value->time_slot_name=='evening') {
-                     $time_slot_value=$time_slot_value.":00 PM";
-                } */
-                
+                $data_u = $this->db->select('image')->where(array('id'=>$value->patient_id))->get("users")->row();
+                $patient_image = ($data_u && !empty($data_u->image)) ? base_url()."uploads/users/".$data_u->image : base_url()."uploads/profile-icon-3.png";
                 
                 $data1 = $this->db->where(array('id'=>$doctor_id))->get("doctors")->row();
-                $doctor_name = $data1->doctor_name;
-                $hospital_name = $data1->hospital_name;
-                $address = $data1->address;
-                $doctor_image = base_url()."uploads/shops/".$data1->doctor_image;
-                $designations = $data1->designations;               
-                $designations_implode= $this->get_designation_names_csv($data1->designations); 
-                
-                  $blue_tick = $data1->blue_tick ;
-         
-             
-                // print_r($is_Verified);die;
-                $doctor_rating = $data1->rating;
-                $total_users_reviewed = $data1->rating_count;
-                
-                
-                $array[]= array('id'=>$value->id,'doctor_name'=>$doctor_name,'doctor_image'=>$doctor_image,'designations'=>$designations_implode,'hospital_name'=>$hospital_name,'address'=>$address,'date'=>$date,'time_slot_name'=>$time_slot_name,'time_slot_value'=>$time_slot_value,'patient_name'=>$patient_name,'patient_mobile'=>$patient_mobile,'patient_age'=>$patient_age,'patient_visiting_purpose'=>$patient_visiting_purpose,'consultation_fee'=>$consultation_fee,'blue_tick'=>$blue_tick,'doctor_rating'=>$doctor_rating,'total_users_reviewed'=>$total_users_reviewed,'doctor_status'=>$value->doctor_status,'appointment_type'=>$appointment_type,'patient_image'=>$patient_image); 
-
-                 $total_consultation_fee = $value->consultation_fee+$total_consultation_fee;
+                if ($data1) {
+                    $doctor_name = $data1->doctor_name;
+                    $hospital_name = $data1->hospital_name;
+                    $address = $data1->address;
+                    $doctor_image = base_url()."uploads/doctors/".$data1->doctor_image;
+                    $designations_implode= $this->get_designation_names_csv($data1->designations); 
+                    $blue_tick = $data1->blue_tick;
+                    $doctor_rating = $data1->rating;
+                    $total_users_reviewed = $data1->rating_count;
+                    
+                    $array[]= array(
+                        'id'=>$value->id,
+                        'doctor_name'=>$doctor_name,
+                        'doctor_image'=>$doctor_image,
+                        'designations'=>$designations_implode,
+                        'hospital_name'=>$hospital_name,
+                        'address'=>$address,
+                        'date'=>$date_disp,
+                        'time_slot_name'=>$time_slot_name,
+                        'time_slot_value'=>$time_slot_value,
+                        'patient_name'=>$patient_name,
+                        'patient_mobile'=>$patient_mobile,
+                        'patient_age'=>$patient_age,
+                        'patient_visiting_purpose'=>$patient_visiting_purpose,
+                        'consultation_fee'=>$consultation_fee,
+                        'blue_tick'=>$blue_tick,
+                        'doctor_rating'=>$doctor_rating,
+                        'total_users_reviewed'=>$total_users_reviewed,
+                        'doctor_status'=>$value->doctor_status,
+                        'appointment_type'=>$appointment_type,
+                        'patient_image'=>$patient_image,
+                        'source' => isset($value->source) ? $value->source : 'offline'
+                    ); 
+                    $total_consultation_fee += (float)$consultation_fee;
+                }
             }
            
-
             if(count($array)>0)
             {  
-                $ar = array('status' =>TRUE,'data'=>$array,'total_consultation_fee'=>$total_consultation_fee);
-                return $ar;
+                return array('status' =>TRUE,'data'=>$array,'total_consultation_fee'=>(string)$total_consultation_fee);
             }
-            else
-            {
-                $ar = array('status'=>FALSE,'message'=>"No data found");
-                return $ar; 
-            } 
         }
-         else
-        {
-            $ar = array('status'=>FALSE,'message'=>"No data found");
-            return $ar;
-        }
-    
+        
+        return array('status'=>FALSE,'message'=>"No data found");
     }
 
     function getDesignation()
@@ -3104,7 +3168,7 @@ class Vendor_doctor_api_model extends CI_Model {
     function send_message($message = "", $mobile_number) {
 
 
-            /*$message = urlencode($message);
+            $message = urlencode($message);
 
             $url = "http://prioritysms.tulsitainfotech.com/api/mt/SendSMS?user=a3advertising&password=A3@90442&senderid=SRGLKO&channel=Trans&DCS=0&flashsms=0&number=".$mobile_number."&text=".$message."&route=15";
 
@@ -3114,7 +3178,7 @@ class Vendor_doctor_api_model extends CI_Model {
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
             curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $timeout);
             $send = curl_exec($ch);
-            curl_close($ch);*/
+            curl_close($ch);
             //print_r($send); die;
 
          return true;
