@@ -12,7 +12,7 @@ class Doctor_subscriptions_model extends CI_Model {
         $this->db->select('ds.*, d.doctor_name, d.hospital_name, d.mobile_number, dsp.name as plan_name, dsp.price as plan_price');
         $this->db->from('doctor_subscriptions ds');
         $this->db->join('doctors d', 'ds.doctor_id = d.id');
-        $this->db->join('doctor_subscription_plans dsp', 'ds.doctor_subscription_plan_id = dsp.id');
+        $this->db->join('subscription_plans dsp', 'ds.doctor_subscription_plan_id = dsp.id', 'left');
         
         if ($doctor_id) {
             $this->db->where('ds.doctor_id', $doctor_id);
@@ -56,7 +56,7 @@ class Doctor_subscriptions_model extends CI_Model {
         $this->db->select('ds.*, d.doctor_name, d.hospital_name, dsp.name as plan_name');
         $this->db->from('doctor_subscriptions ds');
         $this->db->join('doctors d', 'ds.doctor_id = d.id');
-        $this->db->join('doctor_subscription_plans dsp', 'ds.doctor_subscription_plan_id = dsp.id');
+        $this->db->join('subscription_plans dsp', 'ds.doctor_subscription_plan_id = dsp.id', 'left');
         $this->db->where('ds.id', $id);
         $result = $this->db->get()->row();
         return $result;
@@ -77,14 +77,15 @@ class Doctor_subscriptions_model extends CI_Model {
     }
 
     function get_plan_by_id($id) {
-        $result = $this->db->where('id', $id)->get('doctor_subscription_plans')->row();
+        $result = $this->db->where('id', $id)->get('subscription_plans')->row();
         return $result;
     }
 
     function get_active_plans() {
+        $this->db->where('plan_type', 'doctor');
         $this->db->where('is_active', 1);
         $this->db->order_by('price', 'ASC');
-        $result = $this->db->get('doctor_subscription_plans')->result();
+        $result = $this->db->get('subscription_plans')->result();
         return $result;
     }
 
@@ -99,11 +100,21 @@ class Doctor_subscriptions_model extends CI_Model {
     function get_active_subscription($doctor_id) {
         $this->db->select('ds.*, dsp.name as plan_name, dsp.price as plan_price');
         $this->db->from('doctor_subscriptions ds');
-        $this->db->join('doctor_subscription_plans dsp', 'ds.doctor_subscription_plan_id = dsp.id');
+        $this->db->join('subscription_plans dsp', 'ds.doctor_subscription_plan_id = dsp.id', 'left');
         $this->db->where('ds.doctor_id', $doctor_id);
         $this->db->where('ds.status', 'active');
         $this->db->where('ds.end_at >', date('Y-m-d H:i:s'));
         $result = $this->db->get()->row();
         return $result;
+    }
+
+    function change_featured_status($id, $status) {
+        $sub = $this->get_subscription_by_id($id);
+        if ($sub) {
+            $this->db->where('doctor_id', $sub->doctor_id);
+            $this->db->where('status', 'active');
+            return $this->db->update('doctor_subscriptions', array('featured_status' => $status));
+        }
+        return false;
     }
 }

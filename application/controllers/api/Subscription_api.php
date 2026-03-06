@@ -794,6 +794,21 @@ public function subscribe_to_doctor_post() {
             $this->response(['status' => false, 'message' => 'Doctor not found or not subscribed'], REST_Controller::HTTP_OK);
         }
     }
+    /**
+     * Get doctors assigned to specific featured plans (Classic, Advanced, Popular)
+     * POST Param: plan_id (Optional)
+     */
+    public function plan_doctors_list_post()
+    {
+        $plan_id = $this->post('plan_id');
+        $doctors = $this->subscription_api_model->get_plan_doctors($plan_id);
+        
+        if ($doctors) {
+            $this->response(['status' => 'success', 'data' => $doctors], REST_Controller::HTTP_OK);
+        } else {
+            $this->response(['status' => 'error', 'message' => 'No doctors found for this plan'], REST_Controller::HTTP_OK);
+        }
+    }
 }
 
 

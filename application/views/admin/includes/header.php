@@ -72,12 +72,21 @@
                         <li>
                             <a href="<?= base_url() ?>admin/dashboard"><i class="fa fa-th-large"></i> <span class="nav-label">Dashboard</span></a>
                         </li>
-                        <li class="<?= $page_name == 'subscriptions' ? 'active' : '' ?>">
-                            <a href="<?= base_url() ?>admin/subscriptions"><i class="fa fa-credit-card"></i> <span class="nav-label">Subscriptions</span></a>
+                        <li class="<?php if($page_name == 'subscriptions' || $page_name == 'doctor_subscriptions' || $page_name == 'plan_doctors' || $page_name == 'manage_plan_doctors'){ echo 'active'; } ?>">
+                            <a href="#"><i class="fa fa-credit-card"></i> <span class="nav-label">Subscriptions</span><span class="fa arrow"></span></a>
+                            <ul class="nav nav-second-level collapse">
+                                <li class="<?= $page_name == 'subscriptions' ? 'active' : '' ?>">
+                                    <a href="<?= base_url() ?>admin/subscriptions">Subscriptions</a>
+                                </li>
+                                <li class="<?= $page_name == 'doctor_subscriptions' ? 'active' : '' ?>">
+                                    <a href="<?= base_url() ?>admin/doctor_subscriptions">Subscription Plans List</a>
+                                </li>
+                                <li class="<?php if($page_name == 'plan_doctors' || $page_name == 'manage_plan_doctors'){ echo 'active'; } ?>">
+                                    <a href="<?= base_url() ?>admin/subscription_plans/manage_doctors/1">Plan Doctors</a>
+                                </li>
+                            </ul>
                         </li>
-                        <li class="<?= $page_name == 'doctor_subscriptions' ? 'active' : '' ?>">
-                            <a href="<?= base_url() ?>admin/doctor_subscriptions"><i class="fa fa-list-alt"></i> <span class="nav-label">Subscription Plans List</span></a>
-                        </li>
+
                         <li>
                             <a href="<?= base_url() ?>admin/loginLogs"><i class="fa fa-users"></i> <span class="nav-label">Admin Login Logs </span></a>
                         </li>
@@ -117,10 +126,6 @@
                                 </li>
 
 
-                     
-                        
-                        
-                        
                             <!--<li class="<?php  if($page_name == 'prescription' || $page_name == 'handwritten_prescription'){ echo 'active'; } ?>">-->
                             <!--        <a href="<?= base_url() ?>admin/prescription">Prescription-->
                             <!--            <span class="fa arrow"></span>-->

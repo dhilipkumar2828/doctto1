@@ -172,4 +172,29 @@ class Doctor_subscriptions extends MY_Controller {
         session_write_close();
         redirect('admin/doctor_subscriptions?type=' . $type);
     }
+
+    function toggleFeaturedStatus($subscription_id, $status) {
+        $subscription = $this->doctor_subscriptions_model->get_subscription_by_id($subscription_id);
+        if (!$subscription) {
+            $this->session->set_flashdata('error_message', 'Subscription not found');
+            redirect('admin/doctor_subscriptions');
+        }
+
+        $res = $this->doctor_subscriptions_model->change_featured_status($subscription_id, $status);
+
+        if ($res) {
+            // If disabling, remove doctor from featured list if exists
+            if ($status == 0) {
+                $this->db->where('doctor_id', $subscription->doctor_id);
+                $this->db->delete('subscription_plan_doctors');
+                $msg = "Doctor disabled and removed from Featured Plan list";
+            } else {
+                $msg = "Doctor enabled for Featured Plan selection";
+            }
+            $this->session->set_flashdata('success_message', $msg);
+        } else {
+            $this->session->set_flashdata('error_message', 'Unable to change status');
+        }
+        redirect('admin/doctor_subscriptions?type=doctor');
+    }
 }

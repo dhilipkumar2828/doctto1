@@ -25,9 +25,9 @@ class Subscription_api_model extends CI_Model {
 
     public function get_my_subscription($id, $type) {
         if ($type == 'doctor') {
-            $this->db->select('ds.*, sp.name as plan_name, sp.perks, sp.call_chat, sp.whatsapp_chat, sp.price as plan_price');
+            $this->db->select('ds.*, dsp.name as plan_name, dsp.perks, dsp.price as plan_price');
             $this->db->from('doctor_subscriptions ds');
-            $this->db->join('subscription_plans sp', 'sp.id = ds.doctor_subscription_plan_id');
+            $this->db->join('subscription_plans dsp', 'dsp.id = ds.doctor_subscription_plan_id');
             $this->db->where('ds.doctor_id', $id);
             $this->db->where('ds.status', 'active');
             $this->db->order_by('ds.id', 'DESC');
@@ -119,9 +119,9 @@ class Subscription_api_model extends CI_Model {
     }
     public function get_history($id, $type) {
         if ($type == 'doctor') {
-            $this->db->select('ds.*, sp.name as plan_name');
+            $this->db->select('ds.*, dsp.name as plan_name');
             $this->db->from('doctor_subscriptions ds');
-            $this->db->join('subscription_plans sp', 'sp.id = ds.doctor_subscription_plan_id');
+            $this->db->join('subscription_plans dsp', 'dsp.id = ds.doctor_subscription_plan_id');
             $this->db->where('ds.doctor_id', $id);
             $this->db->order_by('ds.id', 'DESC');
             return $this->db->get()->result();
@@ -222,13 +222,48 @@ class Subscription_api_model extends CI_Model {
         return $this->db->insert('user_subscribed_doctors', $insert_data);
     }
 
+    public function get_plan_doctors($plan_id = null) {
+        $this->db->select('spd.plan_id, d.id as doctor_id, d.doctor_name, d.doctor_image, d.designations, d.mobile_number, d.morning_start_time, d.morning_end_time, d.afternoon_start_time, d.afternoon_end_time, d.evening_start_time, d.evening_end_time, d.specialisation, d.specialist_in, d.rating, d.rating_count, d.blue_tick, spd.sort_order, sp.name as plan_name, sp.id as subscription_plan_id, sp.price as plan_price');
+        $this->db->from('subscription_plan_doctors spd');
+        $this->db->join('doctors d', 'spd.doctor_id = d.id');
+        
+        // Join with doctor_subscriptions to verify payment and featured status
+        $this->db->join('doctor_subscriptions ds', 'ds.doctor_id = d.id AND ds.status = \'active\'');
+        
+        // Join with subscription_plans (Unified table)
+        // Since spd.plan_id might still point to the old table ID (1,2,3), we match by name if possible
+        $this->db->join('subscription_plans sp', 'sp.id = ds.doctor_subscription_plan_id');
+
+        if ($plan_id) {
+            $this->db->where('ds.doctor_subscription_plan_id', $plan_id);
+        }
+
+        $this->db->where('ds.featured_status', 1);
+        $this->db->group_by('d.id');
+        $this->db->order_by('spd.sort_order', 'ASC');
+
+        $doctors = $this->db->get()->result();
+
+        foreach ($doctors as $doc) {
+            $doc->doctor_image = !empty($doc->doctor_image) ? base_url() . 'uploads/doctors/' . $doc->doctor_image : base_url() . 'uploads/profile-icon-3.png';
+            $doc->specialisation_name = $this->get_specialisation_name($doc->specialisation);
+            $designation_names = $this->get_designation_names($doc->designations);
+            $doc->designation_names = implode(',', $designation_names);
+            $doc->rating_count = !empty($doc->rating_count) ? $doc->rating_count : "0";
+            $doc->blue_tick = ($doc->blue_tick == 1 || $doc->blue_tick == 'active') ? 'active' : 'inactive';
+        }
+
+        return $doctors;
+    }
+
+
     public function get_all_subscribed_doctors() {
-        $this->db->select('d.id as doctor_id, d.doctor_name, d.doctor_image, d.designations, d.mobile_number, d.morning_start_time, d.morning_end_time, d.afternoon_start_time, d.afternoon_end_time, d.evening_start_time, d.evening_end_time, d.specialisation, d.specialist_in, d.rating, d.rating_count, sp.name as plan_name, sp.price as plan_price, sp.call_chat, sp.whatsapp_chat');
+        $this->db->select('ds.id as subscription_id, ds.start_at, ds.end_at, ds.status as subscription_status, d.id as doctor_id, d.doctor_name, d.doctor_image, d.designations, d.mobile_number, d.morning_start_time, d.morning_end_time, d.afternoon_start_time, d.afternoon_end_time, d.evening_start_time, d.evening_end_time, d.specialisation, d.specialist_in, d.rating, d.rating_count, d.blue_tick, sp.name as plan_name, sp.price as plan_price');
         $this->db->from('doctors d');
         $this->db->join('doctor_subscriptions ds', 'd.id = ds.doctor_id');
         $this->db->join('subscription_plans sp', 'sp.id = ds.doctor_subscription_plan_id');
         $this->db->where('ds.status', 'active');
-        $this->db->where('d.doctor_show_status', 'active');
+        $this->db->where('ds.featured_status', 1);
         $this->db->group_by('d.id');
         $doctors = $this->db->get()->result();
 
@@ -238,13 +273,15 @@ class Subscription_api_model extends CI_Model {
             $doc->specialisation_name = $this->get_specialisation_name($doc->specialisation);
             $designation_names = $this->get_designation_names($doc->designations);
             $doc->designation_names = implode(',', $designation_names);
+            $doc->rating_count = !empty($doc->rating_count) ? $doc->rating_count : "0";
+            $doc->blue_tick = ($doc->blue_tick == 1 || $doc->blue_tick == 'active') ? 'active' : 'inactive';
         }
 
         return $doctors;
     }
 
     public function get_subscribed_doctor_details($doctor_id) {
-        $this->db->select('d.*, ds.status as subscription_status, ds.end_at, sp.name as subscription_plan_name, sp.price as plan_price, sp.call_chat, sp.whatsapp_chat');
+        $this->db->select('d.*, ds.status as subscription_status, ds.end_at, ds.featured_status, sp.name as subscription_plan_name, sp.price as plan_price');
         $this->db->from('doctors d');
         $this->db->join('doctor_subscriptions ds', 'd.id = ds.doctor_id', 'left');
         $this->db->join('subscription_plans sp', 'sp.id = ds.doctor_subscription_plan_id', 'left');

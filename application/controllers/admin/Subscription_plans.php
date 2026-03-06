@@ -196,7 +196,6 @@ class Subscription_plans extends MY_Controller {
         $data = array(
             'plan_id' => $plan_id,
             'doctor_id' => $doctor_id,
-            'is_default' => 0,
             'sort_order' => $current_count + 1
         );
 
@@ -227,5 +226,69 @@ class Subscription_plans extends MY_Controller {
             $this->session->set_flashdata('error_message', 'Unable to update doctor order');
         }
         redirect('admin/subscription_plans/edit/' . $plan_id);
+    }
+
+    function manage_doctors($plan_id) {
+        if (!$plan_id) {
+            redirect('admin/subscription_plans');
+        }
+
+        $this->data['page_name'] = 'plan_doctors';
+        $this->data['current_plan_id'] = $plan_id;
+        $this->data['plan'] = $this->subscription_plans_model->get_plan_by_id($plan_id);
+        
+        if (!$this->data['plan']) {
+            $this->session->set_flashdata('error_message', 'Plan not found');
+            redirect('admin/subscription_plans');
+        }
+
+        $this->data['page_title'] = 'Manage Doctors - ' . $this->data['plan']->name;
+        $this->data['all_plans'] = $this->subscription_plans_model->get_active_plans();
+        $this->data['assigned_doctors'] = $this->subscription_plans_model->get_assigned_doctors($plan_id);
+        $this->data['available_doctors'] = $this->subscription_plans_model->get_available_doctors($plan_id);
+        
+        $this->admin_view('manage_plan_doctors');
+    }
+
+    function assign_doctor_from_manage() {
+        $plan_id = $this->input->post('plan_id');
+        $doctor_id = $this->input->post('doctor_id');
+        
+        // Check if doctor is already assigned to ANY plan
+        if ($this->subscription_plans_model->is_doctor_assigned_to_any_plan($doctor_id)) {
+            $this->session->set_flashdata('error_message', 'Doctor is already assigned to a plan. A doctor can only have one active subscription plan.');
+            redirect('admin/subscription_plans/manage_doctors/' . $plan_id);
+        }
+
+        // Check limit
+        $current_count = $this->subscription_plans_model->get_assigned_doctors_count($plan_id);
+        $max_allowed = $this->subscription_plans_model->get_plan_max_doctors($plan_id);
+        
+        if ($current_count >= $max_allowed) {
+            $this->session->set_flashdata('error_message', "You can assign only $max_allowed doctors to this plan");
+            redirect('admin/subscription_plans/manage_doctors/' . $plan_id);
+        }
+
+        $data = array(
+            'plan_id' => $plan_id,
+            'doctor_id' => $doctor_id,
+            'sort_order' => $current_count + 1
+        );
+
+        if ($this->subscription_plans_model->assign_doctor($data)) {
+            $this->session->set_flashdata('success_message', 'Doctor assigned successfully');
+        } else {
+            $this->session->set_flashdata('error_message', 'Unable to assign doctor');
+        }
+        redirect('admin/subscription_plans/manage_doctors/' . $plan_id);
+    }
+
+    function remove_doctor_from_manage($plan_id, $doctor_id) {
+        if ($this->subscription_plans_model->remove_doctor($plan_id, $doctor_id)) {
+            $this->session->set_flashdata('success_message', 'Doctor removed successfully');
+        } else {
+            $this->session->set_flashdata('error_message', 'Unable to remove doctor');
+        }
+        redirect('admin/subscription_plans/manage_doctors/' . $plan_id);
     }
 }
