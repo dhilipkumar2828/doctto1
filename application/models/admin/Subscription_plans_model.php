@@ -10,8 +10,9 @@ class Subscription_plans_model extends CI_Model {
 
     function get_all_plans() {
         $this->db->select('sp.*, COUNT(spd.doctor_id) as assigned_doctors_count');
-        $this->db->from('doctor_subscription_plans sp');
+        $this->db->from('subscription_plans sp');
         $this->db->join('subscription_plan_doctors spd', 'sp.id = spd.plan_id', 'left');
+        $this->db->where('sp.plan_type', 'doctor');
         $this->db->group_by('sp.id');
         $this->db->order_by('sp.id', 'ASC');
         $result = $this->db->get()->result();
@@ -24,11 +25,12 @@ class Subscription_plans_model extends CI_Model {
     }
 
     function get_plan_by_id($id) {
-        $result = $this->db->where('id', $id)->get('doctor_subscription_plans')->row();
+        $result = $this->db->where(['id' => $id, 'plan_type' => 'doctor'])->get('subscription_plans')->row();
         return $result;
     }
 
     function insert_plan($data) {
+        $data['plan_type'] = 'doctor';
         $this->db->insert('subscription_plans', $data);
         return $this->db->insert_id();
     }
@@ -92,13 +94,16 @@ class Subscription_plans_model extends CI_Model {
             array_column($ids2, 'id')
         ));
 
+        if (empty($all_ids)) {
+            return []; // Return empty array immediately to avoid DB error with empty where_in
+        }
+
         $this->db->select('d.id, d.doctor_name, d.hospital_name, d.mobile_number');
         $this->db->from('doctors d');
         // Join with doctor_subscriptions
         $this->db->join('doctor_subscriptions ds', 'd.id = ds.doctor_id');
         $this->db->where_in('ds.doctor_subscription_plan_id', $all_ids);
         $this->db->where('ds.status', 'active');
-        $this->db->where('ds.featured_status', 1);
         $this->db->where('d.doctor_login_status', 'active');
         
         // Exclude doctors who are already assigned to THIS specific plan
@@ -115,7 +120,7 @@ class Subscription_plans_model extends CI_Model {
     }
 
     function get_plan_max_doctors($plan_id) {
-        $result = $this->db->select('max_doctors_allowed')->where('id', $plan_id)->get('doctor_subscription_plans')->row();
+        $result = $this->db->select('max_doctors_allowed')->where('id', $plan_id)->get('subscription_plans')->row();
         return $result ? $result->max_doctors_allowed : 0;
     }
 
@@ -124,7 +129,7 @@ class Subscription_plans_model extends CI_Model {
         return $result > 0;
     }
 
-    function is_doctor_assigned_to_any_plan($doctor_id) {
+        function is_doctor_assigned_to_any_plan($doctor_id) {
         $result = $this->db->where('doctor_id', $doctor_id)->get('subscription_plan_doctors')->num_rows();
         return $result > 0;
     }
@@ -147,9 +152,10 @@ class Subscription_plans_model extends CI_Model {
     }
 
     function get_active_plans() {
+        $this->db->where('plan_type', 'doctor');
         $this->db->where('is_active', 1);
         $this->db->order_by('id', 'ASC');
-        $result = $this->db->get('doctor_subscription_plans')->result();
+        $result = $this->db->get('subscription_plans')->result();
         return $result;
     }
 }

@@ -116,8 +116,8 @@ define("PHONEPE_UAT_CLIENT_ID", 'M1Y5YWMA86HR_26022011411');
 define("PHONEPE_UAT_CLIENT_SECRET", 'YTE4N2E5NzQtNTlmMi00MDQ3LTljNTVmMTYtNjMyNzTQ1');
 define("PHONEPE_UAT_CLIENT_VERSION", 1);
 
-// Base URLs
-define("PHONEPE_PROD_URL", 'https://api.phonepe.com/apis/hermes');
+// Base URLs as recommended by PhonePe Support (Sneha)
+define("PHONEPE_PROD_URL", 'https://api.phonepe.com/apis/pg');
 define("PHONEPE_UAT_URL", 'https://api-preprod.phonepe.com/apis/pg-sandbox');
 
 // Helper for current environment
@@ -125,3 +125,4 @@ define("PHONEPE_CLIENT_ID", (PHONEPE_MODE == 'PROD') ? PHONEPE_PROD_CLIENT_ID : 
 define("PHONEPE_CLIENT_SECRET", (PHONEPE_MODE == 'PROD') ? PHONEPE_PROD_CLIENT_SECRET : PHONEPE_UAT_CLIENT_SECRET);
 define("PHONEPE_CLIENT_VERSION", (PHONEPE_MODE == 'PROD') ? PHONEPE_PROD_CLIENT_VERSION : PHONEPE_UAT_CLIENT_VERSION);
 define("PHONEPE_BASE_URL", (PHONEPE_MODE == 'PROD') ? PHONEPE_PROD_URL : PHONEPE_UAT_URL);
+define("PHONEPE_MERCHANT_ID", (PHONEPE_MODE == 'PROD') ? 'M1Y5YWMA86HR' : 'M1Y5YWMA86HR'); // Use production merchant ID for both if needed, or specific UAT ID

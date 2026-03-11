@@ -956,6 +956,19 @@ parent::__construct();
         }
     }
 
+    /**
+     * Verification for PhonePe Subscription Redirect Flow (V2)
+     */
+    public function verify_subscription_payment_get($merchant_transaction_id)
+    {
+        $result = $this->Doctors_model->verifyPhonePeSubscriptionPayment($merchant_transaction_id);
+        
+        // Redirect back to admin panel or mobile app with result
+        // For web:
+        $status = $result['status'] ? 'success' : 'failed';
+        redirect(base_url('admin/doctor_subscription_plans?payment=' . $status . '&tid=' . $merchant_transaction_id));
+    }
+
     public function subscription_payment_callback_post()
     {
         // Get raw input for JSON parsing

@@ -15,6 +15,7 @@
         $('.dataTables-example').DataTable({
             pageLength: 10,
             responsive: true,
+            order: [[0, "asc"]],
             dom: '<"html5buttons"B>lTfgitp',
             buttons: [
                             //{extend: 'copy'},

@@ -25,7 +25,7 @@ class Subscription_api_model extends CI_Model {
 
     public function get_my_subscription($id, $type) {
         if ($type == 'doctor') {
-            $this->db->select('ds.*, dsp.name as plan_name, dsp.perks, dsp.price as plan_price');
+            $this->db->select('ds.*, dsp.name as plan_name, dsp.description as perks, dsp.price as plan_price');
             $this->db->from('doctor_subscriptions ds');
             $this->db->join('subscription_plans dsp', 'dsp.id = ds.doctor_subscription_plan_id');
             $this->db->where('ds.doctor_id', $id);
@@ -76,6 +76,7 @@ class Subscription_api_model extends CI_Model {
                 'payment_id' => $data['payment_id'] ?? null,
                 'payment_status' => 'completed',
                 'auto_renew' => 1,
+                'featured_status' => $data['featured_status'] ?? 0,
                 'created_at' => date('Y-m-d H:i:s')
             ];
             
@@ -148,7 +149,11 @@ class Subscription_api_model extends CI_Model {
     }
 
     public function get_plan_details($id) {
-        return $this->db->get_where('subscription_plans', ['id' => $id, 'is_active' => 1])->row();
+        $plan = $this->db->get_where('subscription_plans', ['id' => $id, 'is_active' => 1])->row();
+        if (!$plan) {
+            $plan = $this->db->get_where('doctor_subscription_plans', ['id' => $id, 'is_active' => 1])->row();
+        }
+        return $plan;
     }
 
     public function insert_plan($data) {
@@ -281,7 +286,7 @@ class Subscription_api_model extends CI_Model {
     }
 
     public function get_subscribed_doctor_details($doctor_id) {
-        $this->db->select('d.*, ds.status as subscription_status, ds.end_at, ds.featured_status, sp.name as subscription_plan_name, sp.price as plan_price');
+        $this->db->select('d.*, ds.status as subscription_status, ds.start_at, ds.end_at, ds.featured_status, sp.name as subscription_plan_name, sp.price as plan_price');
         $this->db->from('doctors d');
         $this->db->join('doctor_subscriptions ds', 'd.id = ds.doctor_id', 'left');
         $this->db->join('subscription_plans sp', 'sp.id = ds.doctor_subscription_plan_id', 'left');
@@ -289,7 +294,7 @@ class Subscription_api_model extends CI_Model {
         $doctor = $this->db->get()->row();
 
         if ($doctor) {
-            // Formatting for subscribed doctor details response
+            // ... (keeping previous logic)
             $doctor->doctor_image = !empty($doctor->doctor_image) ? base_url() . 'uploads/doctors/' . $doctor->doctor_image : base_url() . 'uploads/profile-icon-3.png';
             $doctor->cover_image = !empty($doctor->hospital_image) ? base_url() . 'uploads/doctors/' . $doctor->hospital_image : '';
             $doctor->digital_signature = !empty($doctor->digital_signature) ? base_url() . 'uploads/doctors/' . $doctor->digital_signature : '';
@@ -316,14 +321,13 @@ class Subscription_api_model extends CI_Model {
             $doctor->doctor_rating = $doctor->rating;
             $doctor->total_users_reviewed = $doctor->rating_count;
             
-            // Calculate remaining days
+            // Calculate remaining days as Date Range
             if (!empty($doctor->end_at)) {
-                $now = time();
-                $end = strtotime($doctor->end_at);
-                $diff = $end - $now;
-                $doctor->remaining_days = $diff > 0 ? ceil($diff / (60 * 60 * 24)) : 0;
+                $formatted_start = !empty($doctor->start_at) ? date('d M Y', strtotime($doctor->start_at)) : '';
+                $formatted_end = date('d M Y', strtotime($doctor->end_at));
+                $doctor->remaining_days = $formatted_end;
             } else {
-                $doctor->remaining_days = 0;
+                $doctor->remaining_days = "No active plan";
             }
 
             // Cleanup

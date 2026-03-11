@@ -283,7 +283,7 @@ class Subscription_webhook extends MY_Controller {
     private function sendSubscriptionActivationNotification($doctor_id, $subscription_id) {
         $this->db->select('ds.*, dsp.name as plan_name, d.doctor_name');
         $this->db->from('doctor_subscriptions ds');
-        $this->db->join('doctor_subscription_plans dsp', 'ds.doctor_subscription_plan_id = dsp.id');
+        $this->db->join('subscription_plans dsp', 'ds.doctor_subscription_plan_id = dsp.id');
         $this->db->join('doctors d', 'ds.doctor_id = d.id');
         $this->db->where('ds.id', $subscription_id);
         $subscription = $this->db->get()->row();

@@ -2104,9 +2104,31 @@ function updateNotifications($user_id)
             );
         }
         
-        // Step C: Create SDK Order Token
-        // Set order expiry to 30 minutes (1800 seconds)
-        $expireAfter = 1800;
+        // Step C: Create Subscription Setup Order
+        // Mapping duration_days to PhonePe frequency
+        $frequency = 'ON_DEMAND';
+        if ($plan->duration_days == 1) {
+            $frequency = 'DAILY';
+        } elseif ($plan->duration_days == 7) {
+            $frequency = 'WEEKLY';
+        } elseif ($plan->duration_days == 30 || $plan->duration_days == 31) {
+            $frequency = 'MONTHLY';
+        } elseif ($plan->duration_days == 90 || $plan->duration_days == 93) {
+            $frequency = 'QUARTERLY';
+        } elseif ($plan->duration_days == 365) {
+            $frequency = 'YEARLY';
+        }
+
+        $subscriptionDetails = array(
+            'subscriptionType' => 'RECURRING',
+            'merchantSubscriptionId' => 'SUB_DOC_' . $doctor_id . '_' . $subscription_id,
+            'authWorkflowType' => 'TRANSACTION',
+            'amountType' => 'VARIABLE', // Changed to VARIABLE for better bank compatibility
+            'amount' => $amount_in_paise,
+            'maxAmount' => $amount_in_paise * 2, // Allow up to 2x for safety
+            'frequency' => $frequency,
+            'expireAt' => (time() + (365 * 24 * 60 * 60)) * 1000
+        );
         
         // Optional: Add metadata for tracking
         $metaInfo = array(
@@ -2116,11 +2138,11 @@ function updateNotifications($user_id)
             'udf4' => 'subscription_id_' . $subscription_id
         );
         
-        $order_result = $this->phonepeoauthservice->createSDKOrder(
+        $order_result = $this->phonepeoauthservice->createSubscriptionSetupOrder(
             $merchant_transaction_id,
             $amount_in_paise,
             $token_result['accessToken'] ?? $token_result['access_token'],
-            $expireAfter,
+            $subscriptionDetails,
             $metaInfo
         );
         
@@ -2129,43 +2151,165 @@ function updateNotifications($user_id)
             $this->db->where('id', $payment_id);
             $this->db->update('doctor_subscription_payments', array(
                 'payment_status' => 'failed',
-                'error_message' => 'Failed to create SDK order: ' . $order_result['message']
+                'error_message' => 'Failed to initiate AutoPay setup: ' . ($order_result['message'] ?? 'Unknown error')
             ));
             
             return array(
                 'status' => FALSE,
-                'message' => 'Failed to create SDK order: ' . $order_result['message']
+                'message' => 'Failed to initiate AutoPay setup: ' . ($order_result['message'] ?? 'Unknown error'),
+                'debug' => $order_result['response'] ?? null
             );
         }
 
-        // Update payment record with SDK order details
+        // Update payment record with AutoPay details
         $this->db->where('id', $payment_id);
         $this->db->update('doctor_subscription_payments', array(
             'transaction_id' => $merchant_transaction_id,
-            'phonepe_order_id' => $order_result['orderId'],
-            'phonepe_token' => $order_result['token'],
+            'phonepe_order_id' => $order_result['orderId'] ?? null,
             'payment_status' => 'initiated'
         ));
 
-        // Return PhonePe SDK response for Flutter app
+        // Return response for frontend redirect
         return array(
             'status' => TRUE,
             'order_id' => $subscription_id,
             'transaction_id' => $merchant_transaction_id,
             'amount' => $plan->price,
             'plan_name' => $plan->name,
+            'redirect_url' => $order_result['redirectUrl'],
             'phonepe_config' => array(
-                'orderId' => $order_result['orderId'],
-                'token' => $order_result['token'],
+                'redirectUrl' => $order_result['redirectUrl'],
                 'merchantOrderId' => $merchant_transaction_id,
-                'amount' => $amount_in_paise,
-                'state' => $order_result['state'] ?? 'PENDING',
-                'expireAt' => $order_result['expireAt'] ?? null,
-                'merchantId' => PHONEPE_CLIENT_ID,
-                'appId' => 'doctto_app_id', // Your app ID from PhonePe
-                'appSchema' => 'doctto://payment' // Your app's URL scheme
+                'amount' => $amount_in_paise
             )
         );
+    }
+
+    function verifyPhonePeSubscriptionPayment($merchant_transaction_id) {
+        // Load PhonePe OAuth Service
+        $this->load->library('PhonePeOAuthService');
+        
+        // Get OAuth token
+        $token_result = $this->phonepeoauthservice->getBearerToken();
+        if (!$token_result['status']) return array('status' => FALSE, 'message' => 'Token failed');
+        
+        $verification_result = $this->phonepeoauthservice->verifyOrderStatus($merchant_transaction_id, $token_result['access_token']);
+        
+        if ($verification_result['status']) {
+            $state = $verification_result['state']; // COMPLETED, FAILED, PENDING
+            
+            // Find the subscription payment record
+            $this->db->where('transaction_id', $merchant_transaction_id);
+            $payment = $this->db->get('doctor_subscription_payments')->row();
+            
+            if ($payment) {
+                $final_status = ($state == 'COMPLETED') ? 'PAYMENT_SUCCESS' : (($state == 'FAILED') ? 'PAYMENT_FAILED' : 'PAYMENT_PENDING');
+                
+                // Update payment record
+                $this->db->where('id', $payment->id);
+                $this->db->update('doctor_subscription_payments', array(
+                    'payment_status' => $final_status,
+                    'phonepe_response' => json_encode($verification_result),
+                    'updated_at' => date('Y-m-d H:i:s')
+                ));
+                
+                if ($state == 'COMPLETED') {
+                    // Activate subscription
+                    $this->db->where('id', $payment->subscription_id);
+                    $this->db->update('doctor_subscriptions', array(
+                        'status' => 'active',
+                        'autopay_enabled' => 1,
+                        'autopay_agreement_id' => 'SUB_DOC_' . $payment->doctor_id . '_' . $payment->subscription_id,
+                        'activated_at' => date('Y-m-d H:i:s')
+                    ));
+                    
+                    // Update doctor record
+                    $this->db->where('id', $payment->doctor_id);
+                    $this->db->update('doctors', array('has_active_subscription' => 1));
+
+                    // Schedule next renewal
+                    $this->schedule_next_renewal($payment->subscription_id);
+                }
+            }
+            return array('status' => TRUE, 'payment_status' => $state, 'data' => $verification_result);
+        }
+        return array('status' => FALSE, 'message' => 'Verification failed');
+    }
+
+    private function schedule_next_renewal($subscription_id) {
+        $sub = $this->db->where('id', $subscription_id)->get('doctor_subscriptions')->row();
+        if ($sub) {
+            // Schedule for the exact end_at date
+            $renewal_data = array(
+                'subscription_id' => $subscription_id,
+                'doctor_id' => $sub->doctor_id,
+                'renewal_date' => $sub->end_at,
+                'status' => 'scheduled',
+                'created_at' => date('Y-m-d H:i:s')
+            );
+            $this->db->insert('subscription_renewals', $renewal_data);
+        }
+    }
+
+    /**
+     * Executes all due subscription renewals (The "Auto" part)
+     * Can be called from MY_Controller constructor to act as a pseudo-cron
+     */
+    public function execute_due_renewals() {
+        // We look for subscriptions that are expiring in exactly 24 hours to NOTIFY them.
+        // For V2, Notify + autoDebit:true is the most reliable "No Cron" way.
+        $tomorrow_limit = date('Y-m-d H:i:s', strtotime('+24 hours'));
+
+        $this->db->select('ds.*, dsp.price, dsp.duration_days');
+        $this->db->from('doctor_subscriptions ds');
+        $this->db->join('doctor_subscription_plans dsp', 'ds.doctor_subscription_plan_id = dsp.id');
+        $this->db->where('ds.status', 'active');
+        $this->db->where('ds.autopay_enabled', 1);
+        $this->db->where('ds.end_at <=', $tomorrow_limit);
+        $due_subs = $this->db->get()->result();
+        
+        if (empty($due_subs)) return;
+        
+        $this->load->library('PhonePeOAuthService');
+        $token_result = $this->phonepeoauthservice->getBearerToken();
+        if (!$token_result['status']) return;
+
+        foreach ($due_subs as $sub) {
+            // Check if already notified for this cycle
+            $cycle_id = 'NOTIFY_' . $sub->id . '_' . date('Ymd', strtotime($sub->end_at));
+            $exists = $this->db->where('transaction_id', $cycle_id)->get('doctor_subscription_payments')->row();
+            if ($exists) continue;
+
+            $amount_in_paise = intval($sub->price * 100);
+            
+            // Call Notify API with auto_debit: true
+            $notify_result = $this->phonepeoauthservice->notifyRedemption(
+                $cycle_id,
+                $sub->autopay_agreement_id,
+                $amount_in_paise,
+                $token_result['access_token'] ?? $token_result['accessToken'],
+                true // auto_debit = true means PhonePe handles the execute after 24h
+            );
+            
+            if ($notify_result['status']) {
+                // Success! Create a record to track the upcoming debit
+                $this->db->insert('doctor_subscription_payments', array(
+                    'doctor_id' => $sub->doctor_id,
+                    'subscription_id' => $sub->id,
+                    'payment_amount' => $sub->price,
+                    'payment_status' => 'notified',
+                    'transaction_id' => $cycle_id,
+                    'is_renewal' => 1,
+                    'created_at' => date('Y-m-d H:i:s')
+                ));
+
+                // Extension will be handled by Webhook when PhonePe actually debits after 24h.
+                // Or we can pre-extend if we trust the notify, but better wait for callback.
+                log_message('info', "AutoPay Notified: scheduled debit for Sub ID " . $sub->id);
+            } else {
+                log_message('error', "AutoPay Notify Failed: Sub ID " . $sub->id . " Error: " . ($notify_result['message'] ?? 'Unknown'));
+            }
+        }
     }
 
     function verifyPhonePePayment($merchant_transaction_id, $details = false, $errorContext = false) {

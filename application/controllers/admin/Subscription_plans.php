@@ -228,9 +228,14 @@ class Subscription_plans extends MY_Controller {
         redirect('admin/subscription_plans/edit/' . $plan_id);
     }
 
-    function manage_doctors($plan_id) {
+    function manage_doctors($plan_id = NULL) {
         if (!$plan_id) {
-            redirect('admin/subscription_plans');
+            $active_plans = $this->subscription_plans_model->get_active_plans();
+            if(!empty($active_plans)) {
+                redirect('admin/subscription_plans/manage_doctors/' . $active_plans[0]->id);
+            } else {
+                redirect('admin/subscription_plans');
+            }
         }
 
         $this->data['page_name'] = 'plan_doctors';

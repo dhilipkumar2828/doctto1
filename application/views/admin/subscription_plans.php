@@ -147,6 +147,7 @@ $(document).ready(function() {
     
     // Initialize DataTable with safe configuration
     $('.dataTables-example').DataTable({
+        destroy: true,
         pageLength: 25,
         responsive: true,
         dom: '<"html5buttons"B>lTfgitp',

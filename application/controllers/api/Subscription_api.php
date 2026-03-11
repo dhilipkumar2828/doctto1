@@ -7,6 +7,9 @@ use Restserver\Libraries\REST_Controller;
 /**
  * @property Subscription_api_model $subscription_api_model
  * @property Common_model $common_model
+ * @property CI_Input $input
+ * @property CI_DB_query_builder $db
+ * @property CI_Output $output
  */
 class Subscription_api extends REST_Controller {
 
@@ -204,7 +207,11 @@ class Subscription_api extends REST_Controller {
                     'history' => $history
                 ], REST_Controller::HTTP_OK);
             } else {
-                $subscription->remaining_days = (int)$remaining_days;
+                $start_date = ($type == 'doctor') ? ($subscription->start_at ?? '') : ($subscription->start_date ?? '');
+                $formatted_start = !empty($start_date) ? date('d M Y', strtotime($start_date)) : '';
+                $formatted_end = !empty($end_date) ? date('d M Y', strtotime($end_date)) : '';
+                
+                $subscription->remaining_days = $formatted_end;
                 
                 // If customer, fetch subscribed doctors
                 if ($type == 'customer') {
@@ -218,7 +225,7 @@ class Subscription_api extends REST_Controller {
                 $this->response([
                     'status' => 'success',
                     'message' => 'Subscription is active',
-                    'remaining_days' => (int)$remaining_days,
+                    'remaining_days' => $subscription->remaining_days,
                     'data' => $subscription,
                     'history' => $history
                 ], REST_Controller::HTTP_OK);

@@ -82,7 +82,7 @@
                                     <a href="<?= base_url() ?>admin/doctor_subscriptions">Subscription Plans List</a>
                                 </li>
                                 <li class="<?php if($page_name == 'plan_doctors' || $page_name == 'manage_plan_doctors'){ echo 'active'; } ?>">
-                                    <a href="<?= base_url() ?>admin/subscription_plans/manage_doctors/1">Plan Doctors</a>
+                                    <a href="<?= base_url() ?>admin/subscription_plans/manage_doctors">Plan Doctors</a>
                                 </li>
                             </ul>
                         </li>

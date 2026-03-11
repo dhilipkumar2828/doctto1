@@ -156,7 +156,7 @@ class Subscription_webhook extends MY_Controller {
         switch ($status) {
             case 'PAYMENT_SUCCESS':
             case 'captured':
-                $this->activateSubscription($subscription_id, $payment->doctor_id);
+                $this->activateSubscription($subscription_id, $payment->doctor_id, $payment->is_renewal);
                 $this->setupAutopayRenewal($subscription_id, $payment->doctor_id);
                 $this->sendSubscriptionActivationNotification($payment->doctor_id, $subscription_id);
                 log_message('info', "Subscription activated successfully for ID: $subscription_id");
@@ -209,13 +209,34 @@ class Subscription_webhook extends MY_Controller {
     }
 
     // Activate subscription
-    private function activateSubscription($subscription_id, $doctor_id) {
-        $this->db->where('id', $subscription_id);
-        $this->db->update('doctor_subscriptions', array(
+    private function activateSubscription($subscription_id, $doctor_id, $is_renewal = 0) {
+        // Get subscription and plan details to know duration
+        $this->db->select('ds.*, dsp.duration_days');
+        $this->db->from('doctor_subscriptions ds');
+        $this->db->join('doctor_subscription_plans dsp', 'ds.doctor_subscription_plan_id = dsp.id');
+        $this->db->where('ds.id', $subscription_id);
+        $sub = $this->db->get()->row();
+
+        if (!$sub) return;
+
+        $update_data = array(
             'status' => 'active',
-            'activated_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s')
-        ));
+        );
+
+        if ($is_renewal == 1) {
+            // Extension Logic: Add duration to current end_at
+            $current_end = strtotime($sub->end_at);
+            // If subscription already expired, start from now, else start from previous end date
+            $base_time = ($current_end > time()) ? $current_end : time();
+            $new_end = date('Y-m-d H:i:s', strtotime('+' . $sub->duration_days . ' days', $base_time));
+            $update_data['end_at'] = $new_end;
+        } else {
+            $update_data['activated_at'] = date('Y-m-d H:i:s');
+        }
+
+        $this->db->where('id', $subscription_id);
+        $this->db->update('doctor_subscriptions', $update_data);
 
         // Update doctor's subscription status
         $this->db->where('id', $doctor_id);
@@ -231,20 +252,26 @@ class Subscription_webhook extends MY_Controller {
         $this->db->where('id', $subscription_id);
         $subscription = $this->db->get('doctor_subscriptions')->row();
         
-        if ($subscription && $subscription->auto_renewal) {
+        if ($subscription && $subscription->auto_renew) {
             // Schedule next renewal
-            $next_renewal_date = date('Y-m-d H:i:s', strtotime($subscription->end_at . ' -1 day'));
+            $next_renewal_date = $subscription->end_at;
             
-            $renewal_data = array(
-                'subscription_id' => $subscription_id,
-                'doctor_id' => $doctor_id,
-                'renewal_date' => $next_renewal_date,
-                'status' => 'scheduled',
-                'created_at' => date('Y-m-d H:i:s')
-            );
-            
-            $this->db->insert('subscription_renewals', $renewal_data);
-            log_message('info', "Autopay renewal scheduled for subscription ID: $subscription_id");
+            // Check if already scheduled
+            $this->db->where('subscription_id', $subscription_id);
+            $this->db->where('status', 'scheduled');
+            $exists = $this->db->get('subscription_renewals')->row();
+
+            if (!$exists) {
+                $renewal_data = array(
+                    'subscription_id' => $subscription_id,
+                    'doctor_id' => $doctor_id,
+                    'renewal_date' => $next_renewal_date,
+                    'status' => 'scheduled',
+                    'created_at' => date('Y-m-d H:i:s')
+                );
+                $this->db->insert('subscription_renewals', $renewal_data);
+            }
+            log_message('info', "Autopay renewal scheduled/verified for subscription ID: $subscription_id");
         }
     }
 

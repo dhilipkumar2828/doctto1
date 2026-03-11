@@ -60,7 +60,7 @@
                         <table class="table table-striped table-bordered table-hover dataTables-example">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
+                                    <th>S.No</th>
                                     <th>Plan Name</th>
                                     <th>Description</th>
                                     <th>Price (₹)</th>
@@ -73,9 +73,9 @@
                             </thead>
                             <tbody>
                                 <?php if ($plans): ?>
-                                    <?php foreach ($plans as $plan): ?>
+                                    <?php $sn = 1; foreach ($plans as $plan): ?>
                                         <tr>
-                                            <td><?= $plan->id ?></td>
+                                            <td><?= $sn++ ?></td>
                                             <td>
                                                 <strong><?= $plan->name ?></strong>
                                             </td>
@@ -150,6 +150,7 @@ $(document).ready(function() {
     $('.dataTables-example').DataTable({
         pageLength: 25,
         responsive: true,
+        order: [[0, "asc"]],
         dom: '<"html5buttons"B>lTfgitp',
         buttons: [
             {extend: 'excel', title: 'Doctor Subscription Plans'},

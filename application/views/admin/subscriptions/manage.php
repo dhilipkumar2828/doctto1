@@ -143,7 +143,7 @@
                         </div>
                         <div class="form-group">
                             <label>Duration (Days)</label>
-                            <input type="number" name="duration_days" value="30" class="form-control" required>
+                            <input type="number" name="duration_days" class="form-control" placeholder="e.g. 1, 30, 365" required>
                         </div>
                         <?php if($selected_type == 'doctor'): ?>
                         <div class="form-group">
@@ -246,7 +246,7 @@
                         
                         <div style="flex: 0 0 auto;">
                             <span class="label" style="background: #23c6c8; color: #fff; border-radius: 20px; padding: 3px 10px; font-weight: 800; font-size: 9px; letter-spacing: 0.5px; box-shadow: 0 2px 4px rgba(35, 198, 200, 0.1);">
-                                <i class="fa fa-clock-o"></i> <?= $plan->duration_days ?> DAYS
+                                <i class="fa fa-clock-o"></i> <?= $plan->duration_days ?> <?= ($plan->duration_days == 1) ? 'DAY' : 'DAYS' ?>
                             </span>
                         </div>
                     </div>
@@ -255,11 +255,11 @@
                         <h1 class="pricing-value" style="color: #1a1a1a; margin: 0;">
                             ₹<?= number_format($plan->price, 0) ?>
                             <span style="font-size: 20px; color: #999; font-weight: 400; vertical-align: middle; margin-left: 5px;">
-                                / <?= ($plan->duration_days == 30) ? 'month' : $plan->duration_days . ' days' ?>
+                                / <?= ($plan->duration_days == 30) ? 'month' : $plan->duration_days . (($plan->duration_days == 1) ? ' day' : ' days') ?>
                             </span>
                         </h1>
                         <div style="text-transform: uppercase; font-size: 11px; font-weight: 800; color: #444; letter-spacing: 1px;">
-                            BILLED EVERY <span style="color: #1c84c6;"><?= $plan->duration_days ?> DAYS</span>
+                            BILLED EVERY <span style="color: #1c84c6;"><?= $plan->duration_days ?> <?= ($plan->duration_days == 1) ? 'DAY' : 'DAYS' ?></span>
                         </div>
                     </div>
 

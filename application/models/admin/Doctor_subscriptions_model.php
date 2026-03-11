@@ -9,10 +9,10 @@ class Doctor_subscriptions_model extends CI_Model {
     }
 
     function get_all_subscriptions($doctor_id = null, $status = null) {
-        $this->db->select('ds.*, d.doctor_name, d.hospital_name, d.mobile_number, dsp.name as plan_name, dsp.price as plan_price');
+        $this->db->select('ds.*, d.doctor_name, d.hospital_name, d.mobile_number, dsp.name as plan_name, dsp.price as plan_price, dsp.description as plan_description');
         $this->db->from('doctor_subscriptions ds');
         $this->db->join('doctors d', 'ds.doctor_id = d.id');
-        $this->db->join('subscription_plans dsp', 'ds.doctor_subscription_plan_id = dsp.id', 'left');
+        $this->db->join('subscription_plans dsp', 'ds.doctor_subscription_plan_id = dsp.id');
         
         if ($doctor_id) {
             $this->db->where('ds.doctor_id', $doctor_id);
@@ -20,9 +20,15 @@ class Doctor_subscriptions_model extends CI_Model {
         
         if ($status) {
             $this->db->where('ds.status', $status);
+        } else {
+            // Only show valid statuses, hide empty junk records
+            $this->db->where_in('ds.status', ['active', 'expired', 'cancelled', 'pending']);
         }
+
+        // Only show records from 2026 onwards to hide 2025 test data
+        $this->db->where('ds.start_at >=', '2026-01-01 00:00:00');
         
-        $this->db->order_by('ds.created_at', 'DESC');
+        $this->db->order_by('ds.id', 'DESC');
         $result = $this->db->get()->result();
         
         if (count($result) > 0) {
@@ -33,7 +39,7 @@ class Doctor_subscriptions_model extends CI_Model {
     }
 
     function get_all_user_subscriptions($user_id = null, $status = null) {
-        $this->db->select('us.*, u.first_name, u.last_name, u.phone, sp.name as plan_name, sp.price as plan_price');
+        $this->db->select('us.*, u.first_name, u.last_name, u.phone, u.email, sp.name as plan_name, sp.price as plan_price, sp.description as plan_description');
         $this->db->from('user_subscriptions us');
         $this->db->join('users u', 'us.user_id = u.id');
         $this->db->join('subscription_plans sp', 'us.plan_id = sp.id');
@@ -46,7 +52,7 @@ class Doctor_subscriptions_model extends CI_Model {
             $this->db->where('us.status', $status);
         }
         
-        $this->db->order_by('us.created_at', 'DESC');
+        $this->db->order_by('us.id', 'DESC');
         $query = $this->db->get();
         
         return $query ? $query->result() : [];

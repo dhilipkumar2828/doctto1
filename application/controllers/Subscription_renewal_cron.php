@@ -4,6 +4,9 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 // Load the PhonePe SDK via Composer Autoloader
 require_once FCPATH . 'vendor/autoload.php';
 
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 /**
  * @property CI_DB_query_builder $db
  * @property CI_Loader $load
@@ -72,7 +75,7 @@ class Subscription_renewal_cron extends CI_Controller {
         $this->db->select('ds.*, d.name as doctor_name, d.email as doctor_email, d.phone as doctor_phone, dsp.name as plan_name, dsp.price as plan_price');
         $this->db->from('doctor_subscriptions ds');
         $this->db->join('doctors d', 'd.id = ds.doctor_id');
-        $this->db->join('doctor_subscription_plans dsp', 'dsp.id = ds.doctor_subscription_plan_id');
+        $this->db->join('subscription_plans dsp', 'dsp.id = ds.doctor_subscription_plan_id');
         $this->db->where('ds.status', 'active');
         $this->db->where('ds.auto_renew', 1);
         $this->db->where('ds.end_at <=', $seven_days_from_now);
@@ -85,8 +88,11 @@ class Subscription_renewal_cron extends CI_Controller {
      * Process renewal for a single subscription
      */
     private function process_single_subscription_renewal($subscription) {
+        if (!$subscription || !isset($subscription['id'])) {
+            log_message('error', 'Attempted to process renewal with empty subscription data');
+            return;
+        }
         log_message('info', 'Processing renewal for subscription ID: ' . $subscription['id']);
-        
         try {
             // Check if autopay is enabled
             if ($subscription['autopay_enabled'] && $subscription['autopay_agreement_id']) {
@@ -137,17 +143,17 @@ class Subscription_renewal_cron extends CI_Controller {
             'created_at' => date('Y-m-d H:i:s')
         ];
         $this->db->insert('doctor_subscription_payments', $payment_data);
-        $payment_id = $this->db->insert_id();
+        $payment_id = $this->db->insert_id(); // Ensure it's called on $this->db
 
         try {
             // Use Client ID/Secret from constants
             $clientId = (string)PHONEPE_CLIENT_ID;
             $clientSecret = (string)PHONEPE_CLIENT_SECRET;
             $clientVersion = (int)PHONEPE_CLIENT_VERSION;
-            $envString = (PHONEPE_MODE == 'PROD') ? \PhonePe\Env::PRODUCTION : \PhonePe\Env::UAT;
+            $envString = (PHONEPE_MODE == 'PROD') ? 'PROD' : 'UAT';
 
             // Manual token fetch for the backend call
-            $token_url = (\PhonePe\Env::getBaseUrlForOAuth($envString)) . '/identity-manager/v1/oauth/token';
+            $token_url = (PHONEPE_MODE == 'PROD') ? 'https://api.phonepe.com/apis/identity-manager/v1/oauth/token' : 'https://api-preprod.phonepe.com/apis/pg-sandbox/identity-manager/v1/oauth/token';
             $token_payload = http_build_query([
                 'client_id' => $clientId,
                 'client_version' => $clientVersion,
@@ -171,8 +177,7 @@ class Subscription_renewal_cron extends CI_Controller {
             $access_token = $token_data->access_token;
             
             // Recurring Debit API V2
-            // Endpoint: /recurring/v2/debit
-            $recurring_url = (\PhonePe\Env::getBaseUrl($envString)) . '/recurring/v2/debit';
+            $recurring_url = (PHONEPE_MODE == 'PROD') ? 'https://api.phonepe.com/apis/pg/checkout/v2/redeem' : 'https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/redeem';
             
             $debit_payload = json_encode([
                 'merchantOrderId' => $merchant_order_id,
@@ -190,7 +195,8 @@ class Subscription_renewal_cron extends CI_Controller {
             curl_setopt($ch, CURLOPT_POSTFIELDS, $debit_payload);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'Authorization: Bearer ' . $access_token,
+                'Authorization: O-Bearer ' . $access_token, // V2 uses O-Bearer
+                'X-MERCHANT-ID: ' . PHONEPE_MERCHANT_ID, // Required for V2 identity verification
                 'Content-Type: application/json'
             ]);
             $response = curl_exec($ch);
@@ -224,7 +230,8 @@ class Subscription_renewal_cron extends CI_Controller {
     }
 
     private function extend_subscription($subscription) {
-        $new_end_at = date('Y-m-d H:i:s', strtotime($subscription['end_at'] . " + {$subscription['duration_days']} days"));
+        $days = (isset($subscription['duration_days']) && $subscription['duration_days'] > 0) ? $subscription['duration_days'] : 30;
+        $new_end_at = date('Y-m-d H:i:s', strtotime($subscription['end_at'] . " + {$days} days"));
         $this->db->where('id', $subscription['id']);
         $this->db->update('doctor_subscriptions', [
             'end_at' => $new_end_at,
@@ -486,7 +493,7 @@ class Subscription_renewal_cron extends CI_Controller {
         $subscription = $this->db->get()->row_array();
         
         if (!$subscription) {
-            echo "ERROR: Subscription not found\n";
+            echo "ERROR: Subscription ID " . $subscription_id . " not found in database.\n";
             return;
         }
         

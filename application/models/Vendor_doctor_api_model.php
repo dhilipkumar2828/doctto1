@@ -2989,13 +2989,14 @@ class Vendor_doctor_api_model extends CI_Model {
                 $sub_status = $subscription ? $subscription->status : "inactive";
                 $sub_plan_price = $subscription ? $subscription->plan_price : 0;
 
-                $remaining_days = 0;
+                $remaining_days = "No Active Plan";
                 if ($subscription && !empty($subscription->end_at)) {
-                    $remaining_seconds = strtotime($subscription->end_at) - time();
-                    $remaining_days = max(0, ceil($remaining_seconds / (60 * 60 * 24)));
+                    $formatted_start = !empty($subscription->start_at) ? date('d M Y', strtotime($subscription->start_at)) : '';
+                    $formatted_end = date('d M Y', strtotime($subscription->end_at));
+                    $remaining_days = $formatted_end;
                 }
                 
-                $array = array('id'=>$id,'doctor_image'=>$doctor_image,'cover_image'=>$cover_image,'digital_signature'=>$digital_signature,'doctor_name'=>$doctor_name,'mobile_number'=>$mobile_number,'email'=>$email,'specialisation'=>$specialisation_name,'specialist_in'=>$specialist_name,'license'=>$license,'designations'=>$desig_name,'experience'=>$experience,'voice_call'=>$voice_call,'video_call'=>$video_call,'chat_price'=>$chat_price,'aboutus'=>$aboutus,'morning_start_time'=>$morning_start_time,'morning_end_time'=>$morning_end_time,'afternoon_start_time'=>$afternoon_start_time,'afternoon_end_time'=>$afternoon_end_time,'evening_start_time'=>$evening_start_time,'evening_end_time'=>$evening_end_time,'category_name'=>$cat_array,'blue_tick'=>$blue_tick,'doctor_rating'=>$doctor_rating,'total_users_reviewed'=>$users_rating_count,'doctor_show_status'=>$query->doctor_show_status,'gender'=>$gender, 'subscription_plan_name' => $sub_plan_name, 'subscription_plan_price' => $sub_plan_price, 'subscription_status' => $sub_status, 'remaining_days' => (int)$remaining_days);
+                $array = array('id'=>$id,'doctor_image'=>$doctor_image,'cover_image'=>$cover_image,'digital_signature'=>$digital_signature,'doctor_name'=>$doctor_name,'mobile_number'=>$mobile_number,'email'=>$email,'specialisation'=>$specialisation_name,'specialist_in'=>$specialist_name,'license'=>$license,'designations'=>$desig_name,'experience'=>$experience,'voice_call'=>$voice_call,'video_call'=>$video_call,'chat_price'=>$chat_price,'aboutus'=>$aboutus,'morning_start_time'=>$morning_start_time,'morning_end_time'=>$morning_end_time,'afternoon_start_time'=>$afternoon_start_time,'afternoon_end_time'=>$afternoon_end_time,'evening_start_time'=>$evening_start_time,'evening_end_time'=>$evening_end_time,'category_name'=>$cat_array,'blue_tick'=>$blue_tick,'doctor_rating'=>$doctor_rating,'total_users_reviewed'=>$users_rating_count,'doctor_show_status'=>$query->doctor_show_status,'gender'=>$gender, 'subscription_plan_name' => $sub_plan_name, 'subscription_plan_price' => $sub_plan_price, 'subscription_status' => $sub_status, 'remaining_days' => $remaining_days);
 
   
             $ar = array('status' =>TRUE,'data'=>$array);

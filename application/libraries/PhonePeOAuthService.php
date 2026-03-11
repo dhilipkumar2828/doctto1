@@ -225,6 +225,186 @@ class PhonePeOAuthService {
             'http_code' => $http_code
         );
     }
+
+    /**
+     * Redemption - Notify API for V2 AutoPay
+     * Used to notify the user 24 hours before debit.
+     * With auto_debit = true, PhonePe will automatically deduct.
+     */
+    public function notifyRedemption($merchantOrderId, $merchantSubscriptionId, $amount, $accessToken, $autoDebit = true) {
+        $env = defined('PHONEPE_ENVIRONMENT') ? PHONEPE_ENVIRONMENT : 'PRODUCTION';
+        $notifyUrl = ($env == 'PROD' || $env == 'PRODUCTION') 
+            ? 'https://api.phonepe.com/apis/pg/subscriptions/v2/notify'
+            : 'https://api-preprod.phonepe.com/apis/pg-sandbox/subscriptions/v2/notify';
+
+        $payload = array(
+            'merchantOrderId' => $merchantOrderId,
+            'merchantSubscriptionId' => $merchantSubscriptionId,
+            'amount' => $amount,
+            'autoDebit' => $autoDebit
+        );
+
+        $curl = curl_init();
+        curl_setopt($curl, CURLOPT_URL, $notifyUrl);
+        curl_setopt($curl, CURLOPT_POST, true);
+        curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($curl, CURLOPT_HTTPHEADER, array(
+            'Content-Type: application/json',
+            'Authorization: O-Bearer ' . $accessToken,
+            'X-MERCHANT-ID: ' . ((defined('PHONEPE_MODE') && PHONEPE_MODE == 'PROD') ? 'M1Y5YWMA86HR' : explode('_', (defined('PHONEPE_CLIENT_ID') ? PHONEPE_CLIENT_ID : 'M1Y5YWMA86HR'))[0]),
+            'accept: application/json'
+        ));
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_TIMEOUT, 30);
+
+        $response = curl_exec($curl);
+        $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $curl_error = curl_error($curl);
+        curl_close($curl);
+
+        if ($curl_error) {
+            return array('status' => false, 'message' => 'CURL Error: ' . $curl_error);
+        }
+
+        $result = json_decode($response, true);
+        if ($http_code == 200 && (isset($result['state']) && ($result['state'] == 'COMPLETED' || $result['state'] == 'SUCCESS'))) {
+            return array(
+                'status' => true,
+                'state' => $result['state'],
+                'response' => $result
+            );
+        }
+
+        return array(
+            'status' => false,
+            'message' => 'Notification failed. HTTP Code: ' . $http_code,
+            'response' => $result
+        );
+    }
+
+    /**
+     * Create Subscription Setup Order following PhonePe V2 Autopay Setup API
+     * Sandbox: https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/pay
+     * Prod: https://api.phonepe.com/apis/pg/checkout/v2/pay
+     */
+    public function createSubscriptionSetupOrder($merchantOrderId, $amount, $accessToken, $subscriptionDetails, $metaInfo = null, $expireAfter = 3000) {
+        $env = defined('PHONEPE_ENVIRONMENT') ? PHONEPE_ENVIRONMENT : 'PRODUCTION';
+        $payUrl = ($env == 'PROD' || $env == 'PRODUCTION') 
+            ? 'https://api.phonepe.com/apis/pg/checkout/v2/pay'
+            : 'https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/pay';
+
+        $payload = array(
+            'merchantOrderId' => $merchantOrderId,
+            'amount' => $amount,
+            'merchantUrls' => array(
+                'redirectUrl' => base_url('api/doctors/verify_subscription_payment/' . $merchantOrderId),
+                'cancelRedirectUrl' => base_url('admin/doctor_subscription_plans')
+            ),
+            'paymentFlow' => array(
+                'type' => 'SUBSCRIPTION_CHECKOUT_SETUP', // Updated to match Sneha's sample
+                'subscriptionDetails' => $subscriptionDetails
+            ),
+            'deviceContext' => array(
+                'deviceOS' => 'ANDROID'
+            ),
+            'expireAfter' => $expireAfter
+        );
+
+        if ($metaInfo !== null && is_array($metaInfo)) {
+            $payload['metaInfo'] = $metaInfo;
+        }
+
+        $curl = curl_init();
+        curl_setopt($curl, CURLOPT_URL, $payUrl);
+        curl_setopt($curl, CURLOPT_POST, true);
+        curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($curl, CURLOPT_HTTPHEADER, array(
+            'Content-Type: application/json',
+            'Authorization: O-Bearer ' . $accessToken, // Changed to O-Bearer as per SDK and docs
+            'X-MERCHANT-ID: ' . $this->clientId, // Use the configured clientId as merchantId
+            'accept: application/json'
+        ));
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_TIMEOUT, 30);
+
+        $response = curl_exec($curl);
+        $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $curl_error = curl_error($curl);
+        curl_close($curl);
+
+        if ($curl_error) {
+            return array('status' => false, 'message' => 'CURL Error: ' . $curl_error);
+        }
+
+        $result = json_decode($response, true);
+        if ($http_code == 200 && (isset($result['redirectUrl']) || isset($result['data']['redirectUrl']))) {
+            return array(
+                'status' => true,
+                'redirectUrl' => $result['redirectUrl'] ?? $result['data']['redirectUrl'],
+                'merchantTransactionId' => $merchantOrderId,
+                'orderId' => $result['orderId'] ?? $result['data']['orderId'] ?? null,
+                'response' => $result
+            );
+        }
+
+        return array(
+            'status' => false,
+            'message' => 'Failed to initiate AutoPay Setup. HTTP Code: ' . $http_code,
+            'response' => $result
+        );
+    }
+
+    /**
+     * Redemption - Execute API for V2 AutoPay
+     * Sandbox: https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/redeem
+     * Prod: https://api.phonepe.com/apis/pg/checkout/v2/redeem
+     */
+    public function executeRedemption($merchantOrderId, $accessToken) {
+        $env = defined('PHONEPE_ENVIRONMENT') ? PHONEPE_ENVIRONMENT : 'PRODUCTION';
+        $redeemUrl = ($env == 'PROD' || $env == 'PRODUCTION') 
+            ? 'https://api.phonepe.com/apis/pg/checkout/v2/redeem'
+            : 'https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/redeem';
+
+        $payload = array(
+            'merchantOrderId' => $merchantOrderId
+        );
+
+        $curl = curl_init();
+        curl_setopt($curl, CURLOPT_URL, $redeemUrl);
+        curl_setopt($curl, CURLOPT_POST, true);
+        curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($curl, CURLOPT_HTTPHEADER, array(
+            'Content-Type: application/json',
+            'Authorization: O-Bearer ' . $accessToken,
+            'accept: application/json'
+        ));
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_TIMEOUT, 30);
+
+        $response = curl_exec($curl);
+        $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $curl_error = curl_error($curl);
+        curl_close($curl);
+
+        if ($curl_error) {
+            return array('status' => false, 'message' => 'CURL Error: ' . $curl_error);
+        }
+
+        $result = json_decode($response, true);
+        if ($http_code == 200 && (isset($result['state']) && ($result['state'] == 'COMPLETED' || $result['state'] == 'SUCCESS'))) {
+            return array(
+                'status' => true,
+                'state' => $result['state'],
+                'response' => $result
+            );
+        }
+
+        return array(
+            'status' => false,
+            'message' => 'Redemption execution failed. HTTP Code: ' . $http_code,
+            'response' => $result
+        );
+    }
     
     /**
      * Check Order Status following PhonePe Standard Checkout Integration

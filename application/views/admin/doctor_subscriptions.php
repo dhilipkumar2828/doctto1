@@ -58,12 +58,12 @@
                     <?php $this->session->unset_userdata('success_message'); ?>
                 <?php } ?>
 
-                <?php if (!empty($this->session->flashdata('error_message'))) { ?>
+                <!-- <?php if (!empty($this->session->flashdata('error_message'))) { ?>
                     <div class="alert alert-danger fade in alert-dismissable">
                         <a href="#" class="close" data-dismiss="alert" aria-label="close">×</a>
                         <strong>Failed!</strong> <?= $this->session->flashdata('error_message') ?>
                     </div>
-                <?php } ?>
+                <?php } ?> -->
 
                 <!-- Filter Section -->
                 <div class="filter-section">
@@ -115,7 +115,7 @@
                         <table class="table table-striped table-bordered table-hover dataTables-example">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
+                                    <th>S.No</th>
                                     <th><?= ($selected_type == 'doctor') ? 'Doctor' : 'Customer' ?></th>
                                     <th>Plan</th>
                                     <th>Start Date</th>
@@ -131,9 +131,9 @@
                             </thead>
                             <tbody>
                                 <?php if ($subscriptions): ?>
-                                    <?php foreach ($subscriptions as $subscription): ?>
+                                    <?php $sn = 1; foreach ($subscriptions as $subscription): ?>
                                         <tr>
-                                            <td><?= $subscription->id ?></td>
+                                            <td><?= $sn++ ?></td>
                                             <td>
                                                 <?php if($selected_type == 'doctor'): ?>
                                                     <strong><?= $subscription->doctor_name ?></strong><br>
@@ -141,12 +141,16 @@
                                                     <small><?= $subscription->mobile_number ?></small>
                                                 <?php else: ?>
                                                     <strong><?= $subscription->first_name ?? '' ?> <?= $subscription->last_name ?? '' ?></strong><br>
-                                                    <small><?= $subscription->phone ?? '' ?></small>
+                                                    <small><?= $subscription->phone ?? '' ?></small><br>
+                                                    <small><?= $subscription->email ?? '' ?></small>
                                                 <?php endif; ?>
                                             </td>
                                             <td>
                                                 <strong><?= $subscription->plan_name ?? 'N/A' ?></strong><br>
                                                 <small>₹<?= number_format((float)($subscription->plan_price ?? 0), 2) ?></small>
+                                                <?php if (!empty($subscription->plan_description)): ?>
+                                                    <br><small class="text-muted"><?= $subscription->plan_description ?></small>
+                                                <?php endif; ?>
                                             </td>
                                             <td><?= ($selected_type == 'doctor') ? (!empty($subscription->start_at) ? date('d M Y', strtotime($subscription->start_at)) : '-') : (!empty($subscription->start_date) ? date('d M Y', strtotime($subscription->start_date)) : '-') ?></td>
                                             <td><?= ($selected_type == 'doctor') ? (!empty($subscription->end_at) ? date('d M Y', strtotime($subscription->end_at)) : '-') : (!empty($subscription->end_date) ? date('d M Y', strtotime($subscription->end_date)) : '-') ?></td>

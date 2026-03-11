@@ -1,0 +1,441 @@
+COLUMNS IN doctor_subscriptions:
+Array
+(
+    [0] => Array
+        (
+            [Field] => id
+            [Type] => int(11)
+            [Null] => NO
+            [Key] => PRI
+            [Default] => 
+            [Extra] => auto_increment
+        )
+
+    [1] => Array
+        (
+            [Field] => doctor_id
+            [Type] => int(11)
+            [Null] => NO
+            [Key] => MUL
+            [Default] => 
+            [Extra] => 
+        )
+
+    [2] => Array
+        (
+            [Field] => doctor_subscription_plan_id
+            [Type] => int(11)
+            [Null] => NO
+            [Key] => MUL
+            [Default] => 
+            [Extra] => 
+        )
+
+    [3] => Array
+        (
+            [Field] => start_at
+            [Type] => timestamp
+            [Null] => NO
+            [Key] => 
+            [Default] => current_timestamp()
+            [Extra] => 
+        )
+
+    [4] => Array
+        (
+            [Field] => end_at
+            [Type] => timestamp
+            [Null] => NO
+            [Key] => 
+            [Default] => current_timestamp()
+            [Extra] => 
+        )
+
+    [5] => Array
+        (
+            [Field] => expired_at
+            [Type] => timestamp
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [6] => Array
+        (
+            [Field] => duration_days
+            [Type] => int(11)
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [7] => Array
+        (
+            [Field] => next_renewal_date
+            [Type] => date
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [8] => Array
+        (
+            [Field] => status
+            [Type] => enum('active','expired','cancelled')
+            [Null] => YES
+            [Key] => MUL
+            [Default] => active
+            [Extra] => 
+        )
+
+    [9] => Array
+        (
+            [Field] => featured_status
+            [Type] => tinyint(1)
+            [Null] => YES
+            [Key] => 
+            [Default] => 0
+            [Extra] => 
+        )
+
+    [10] => Array
+        (
+            [Field] => auto_renew
+            [Type] => tinyint(1)
+            [Null] => YES
+            [Key] => 
+            [Default] => 0
+            [Extra] => 
+        )
+
+    [11] => Array
+        (
+            [Field] => autopay_status
+            [Type] => enum('inactive','active','failed')
+            [Null] => YES
+            [Key] => 
+            [Default] => inactive
+            [Extra] => 
+        )
+
+    [12] => Array
+        (
+            [Field] => payment_method
+            [Type] => varchar(50)
+            [Null] => YES
+            [Key] => 
+            [Default] => phonepe
+            [Extra] => 
+        )
+
+    [13] => Array
+        (
+            [Field] => phonepe_agreement_id
+            [Type] => varchar(100)
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [14] => Array
+        (
+            [Field] => autopay_agreement_id
+            [Type] => varchar(255)
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [15] => Array
+        (
+            [Field] => payment_status
+            [Type] => enum('pending','success','failed','declined')
+            [Null] => YES
+            [Key] => MUL
+            [Default] => pending
+            [Extra] => 
+        )
+
+    [16] => Array
+        (
+            [Field] => payment_gateway
+            [Type] => enum('phonepe','razorpay')
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [17] => Array
+        (
+            [Field] => payment_id
+            [Type] => varchar(255)
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [18] => Array
+        (
+            [Field] => amount
+            [Type] => decimal(10,2)
+            [Null] => NO
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [19] => Array
+        (
+            [Field] => autopay_enabled
+            [Type] => tinyint(1)
+            [Null] => YES
+            [Key] => 
+            [Default] => 0
+            [Extra] => 
+        )
+
+    [20] => Array
+        (
+            [Field] => next_billing_date
+            [Type] => date
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [21] => Array
+        (
+            [Field] => created_at
+            [Type] => timestamp
+            [Null] => YES
+            [Key] => 
+            [Default] => current_timestamp()
+            [Extra] => 
+        )
+
+    [22] => Array
+        (
+            [Field] => updated_at
+            [Type] => timestamp
+            [Null] => YES
+            [Key] => 
+            [Default] => current_timestamp()
+            [Extra] => on update current_timestamp()
+        )
+
+)
+
+LATEST SUBSCRIPTION:
+Array
+(
+    [0] => Array
+        (
+            [id] => 143
+            [doctor_id] => 183
+            [doctor_subscription_plan_id] => 6
+            [start_at] => 2026-03-06 17:48:45
+            [end_at] => 2026-04-05 17:48:45
+            [expired_at] => 
+            [duration_days] => 
+            [next_renewal_date] => 
+            [status] => active
+            [featured_status] => 1
+            [auto_renew] => 1
+            [autopay_status] => inactive
+            [payment_method] => phonepe
+            [phonepe_agreement_id] => 
+            [autopay_agreement_id] => 
+            [payment_status] => 
+            [payment_gateway] => 
+            [payment_id] => MTID1772779700646
+            [amount] => 1.00
+            [autopay_enabled] => 0
+            [next_billing_date] => 
+            [created_at] => 2026-03-06 17:48:45
+            [updated_at] => 2026-03-06 12:18:45
+        )
+
+)
+
+COLUMNS IN doctor_subscription_payments:
+Array
+(
+    [0] => Array
+        (
+            [Field] => id
+            [Type] => int(11)
+            [Null] => NO
+            [Key] => PRI
+            [Default] => 
+            [Extra] => auto_increment
+        )
+
+    [1] => Array
+        (
+            [Field] => doctor_id
+            [Type] => int(11)
+            [Null] => NO
+            [Key] => MUL
+            [Default] => 
+            [Extra] => 
+        )
+
+    [2] => Array
+        (
+            [Field] => subscription_id
+            [Type] => int(11)
+            [Null] => NO
+            [Key] => MUL
+            [Default] => 
+            [Extra] => 
+        )
+
+    [3] => Array
+        (
+            [Field] => payment_amount
+            [Type] => decimal(10,2)
+            [Null] => NO
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [4] => Array
+        (
+            [Field] => payment_method
+            [Type] => enum('phonepe','razorpay')
+            [Null] => NO
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [5] => Array
+        (
+            [Field] => payment_status
+            [Type] => enum('pending','success','failed','declined')
+            [Null] => YES
+            [Key] => MUL
+            [Default] => pending
+            [Extra] => 
+        )
+
+    [6] => Array
+        (
+            [Field] => is_renewal
+            [Type] => tinyint(1)
+            [Null] => YES
+            [Key] => 
+            [Default] => 0
+            [Extra] => 
+        )
+
+    [7] => Array
+        (
+            [Field] => autopay_setup
+            [Type] => tinyint(1)
+            [Null] => YES
+            [Key] => 
+            [Default] => 0
+            [Extra] => 
+        )
+
+    [8] => Array
+        (
+            [Field] => autopay_agreement_id
+            [Type] => varchar(255)
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [9] => Array
+        (
+            [Field] => transaction_id
+            [Type] => varchar(255)
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [10] => Array
+        (
+            [Field] => phonepe_transaction_id
+            [Type] => varchar(255)
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [11] => Array
+        (
+            [Field] => razorpay_order_id
+            [Type] => varchar(255)
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [12] => Array
+        (
+            [Field] => razorpay_payment_id
+            [Type] => varchar(255)
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [13] => Array
+        (
+            [Field] => error_code
+            [Type] => varchar(100)
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [14] => Array
+        (
+            [Field] => error_message
+            [Type] => text
+            [Null] => YES
+            [Key] => 
+            [Default] => 
+            [Extra] => 
+        )
+
+    [15] => Array
+        (
+            [Field] => created_at
+            [Type] => timestamp
+            [Null] => YES
+            [Key] => 
+            [Default] => current_timestamp()
+            [Extra] => 
+        )
+
+    [16] => Array
+        (
+            [Field] => updated_at
+            [Type] => timestamp
+            [Null] => YES
+            [Key] => 
+            [Default] => current_timestamp()
+            [Extra] => on update current_timestamp()
+        )
+
+)

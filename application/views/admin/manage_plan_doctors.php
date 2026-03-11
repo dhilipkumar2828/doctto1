@@ -72,7 +72,7 @@
                             </div>
                             <div class="col-md-4 text-right">
                                 <span class="limit-badge">
-                                    <i class="fa fa-user-md"></i> Limit: <?= $plan->max_doctors_allowed ?> Doctors
+                                    <i class="fa fa-user-md"></i> Max Doctors Allowed: <?= $plan->max_doctors_allowed ?> Doctors
                                 </span>
                                 <h3 style="margin-top: 10px;">₹<?= number_format($plan->price, 2) ?> / Month</h3>
                             </div>
@@ -86,12 +86,12 @@
                         </div>
                     <?php } ?>
 
-                    <?php if (!empty($this->session->flashdata('error_message'))) { ?>
+                    <!-- <?php if (!empty($this->session->flashdata('error_message'))) { ?>
                         <div class="alert alert-danger fade in alert-dismissable">
                             <a href="#" class="close" data-dismiss="alert" aria-label="close">×</a>
                             <strong>Error!</strong> <?= $this->session->flashdata('error_message') ?>
                         </div>
-                    <?php } ?>
+                    <?php } ?> -->
 
                     <div class="row">
                         <!-- Assign Doctor Section -->
