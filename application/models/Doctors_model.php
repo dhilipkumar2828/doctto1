@@ -135,8 +135,14 @@ function notificationCount($user_id)
         
         
         
-                        $this->db->where("doctor_show_status","active");
-        $doctors_data = $this->db->get('doctors')->result(); 
+        $this->db->select('doctors.*');
+        $this->db->from('doctors');
+        $this->db->join('doctor_subscriptions ds', 'ds.doctor_id = doctors.id');
+        $this->db->where('ds.status', 'active');
+        $this->db->where('ds.featured_status', 1);
+        $this->db->where('ds.end_at >=', date('Y-m-d H:i:s'));
+        $this->db->where("doctors.doctor_show_status","active");
+        $doctors_data = $this->db->get()->result(); 
         
  
         
@@ -207,10 +213,15 @@ function notificationCount($user_id)
              //$table = "doctors";
             //  $this->db->select("id,hospital_name,hospital_image,doctor_name,doctor_image,designations,consultant_fee,( 3959 * acos ( cos ( radians('".$latitude."') ) * cos( radians( latitude ) ) * cos( radians( longitude ) - radians('".$longitude."') ) + sin ( radians('".$latitude."') ) * sin( radians( latitude ) ) ) ) * 1.60934 AS distance");
             // $this->db->having('distance<',$distance, false);
-            $this->db->where("doctor_show_status","active");
-             $this->db->order_by("id","desc");
+            // LEFT JOIN so ALL active doctors appear (subscribed OR not subscribed)
+            $this->db->select('doctors.*');
+            $this->db->from('doctors');
+            $this->db->join('doctor_subscriptions ds', 'ds.doctor_id = doctors.id AND ds.status = \'active\'', 'left');
+            $this->db->where("doctors.doctor_show_status","active");
+            $this->db->group_by('doctors.id');
+            $this->db->order_by("doctors.id","desc");
             $this->db->limit("6");
-            $data = $this->db->get("doctors")->result();
+            $data = $this->db->get()->result();
             
             // print_r($data);die;
         if(count($data)>0){
@@ -468,13 +479,14 @@ function notificationCount($user_id)
         //   $distance = $this->db->where('id',1)->get("admin")->row()->distance;
         // $this->db->select("id,hospital_name,hospital_image,doctor_name,doctor_image,designations,consultant_fee,experience,( 3959 * acos ( cos ( radians('".$latitude."') ) * cos( radians( latitude ) ) * cos( radians( longitude ) - radians('".$longitude."') ) + sin ( radians('".$latitude."') ) * sin( radians( latitude ) ) ) ) * 1.60934 AS distance");
         //     $this->db->having('distance<',$distance, false);
-            $this->db->where("doctor_show_status","active");
-             $this->db->order_by("id","desc");
-             
-             
-                    $this->db->select('*');
-                    
-            $data = $this->db->get("doctors")->result();
+            // LEFT JOIN so ALL active doctors appear (subscribed OR not subscribed)
+            $this->db->select('doctors.*');
+            $this->db->from('doctors');
+            $this->db->join('doctor_subscriptions ds', 'ds.doctor_id = doctors.id AND ds.status = \'active\'', 'left');
+            $this->db->where("doctors.doctor_show_status","active");
+            $this->db->group_by('doctors.id');
+            $this->db->order_by("doctors.id","desc");
+            $data = $this->db->get()->result();
             
             // print_r($data);die;
 
@@ -621,12 +633,20 @@ function notificationCount($user_id)
     function doctors_full_details_list($title,$doctor_id){
         $table = "doctors";
         $this->db->select("*");
-        $this->db->where('id',$doctor_id);
-        $this->db->where("doctor_show_status",'active');
-        $this->db->like('doctor_name',$title,'both',false);
-        $this->db->or_like('designations',$title);
-        $this->db->order_by("id","desc");
-        $data = $this->db->get($table)->result();
+        $this->db->select('doctors.*');
+        $this->db->from('doctors');
+        $this->db->join('doctor_subscriptions ds', 'ds.doctor_id = doctors.id');
+        $this->db->where('ds.status', 'active');
+        $this->db->where('ds.featured_status', 1);
+        $this->db->where('ds.end_at >=', date('Y-m-d H:i:s'));
+        $this->db->where('doctors.id',$doctor_id);
+        $this->db->where("doctors.doctor_show_status",'active');
+        $this->db->group_start();
+        $this->db->like('doctors.doctor_name',$title,'both',false);
+        $this->db->or_like('doctors.designations',$title);
+        $this->db->group_end();
+        $this->db->order_by("doctors.id","desc");
+        $data = $this->db->get()->result();
         //echo $this->db->last_query(); die;
         if(count($data)>0){
 
@@ -655,11 +675,15 @@ function notificationCount($user_id)
     //doctors details
     function doctors_details($doctor_id){
 
-        $table = "doctors";
-        $this->db->select("*");
-        $this->db->where('id',$doctor_id);
-        $this->db->where("doctor_show_status",'active');
-        $data = $this->db->get($table)->result();
+        $this->db->select('doctors.*');
+        $this->db->from('doctors');
+        $this->db->join('doctor_subscriptions ds', 'ds.doctor_id = doctors.id');
+        $this->db->where('ds.status', 'active');
+        $this->db->where('ds.featured_status', 1);
+        $this->db->where('ds.end_at >=', date('Y-m-d H:i:s'));
+        $this->db->where('doctors.id',$doctor_id);
+        $this->db->where("doctors.doctor_show_status",'active');
+        $data = $this->db->get()->result();
         
         // print_r($data);die;
     
@@ -805,12 +829,18 @@ function notificationCount($user_id)
         // $distance = $this->db->where('id',1)->get("admin")->row()->distance;
         // $this->db->select("id,experience,hospital_name,hospital_image,doctor_name,doctor_image,designations,consultant_fee,( 3959 * acos ( cos ( radians('".$latitude."') ) * cos( radians( latitude ) ) * cos( radians( longitude ) - radians('".$longitude."') ) + sin ( radians('".$latitude."') ) * sin( radians( latitude ) ) ) ) * 1.60934 AS distance");
         //                 $this->db->having('distance<',$distance, false);
-                        $this->db->like('hospital_name',$keyword,'both',false);
-                        $this->db->or_like('doctor_name',$keyword,'both',false);
-
-                        $this->db->where("doctor_show_status","active");
-                        $this->db->order_by("id","desc");
-                $data = $this->db->get('doctors')->result();
+                        // LEFT JOIN so ALL active doctors appear (subscribed OR not)
+                        $this->db->select('doctors.*');
+                        $this->db->from('doctors');
+                        $this->db->join('doctor_subscriptions ds', 'ds.doctor_id = doctors.id AND ds.status = \'active\'', 'left');
+                        $this->db->group_start();
+                        $this->db->like('doctors.hospital_name',$keyword,'both',false);
+                        $this->db->or_like('doctors.doctor_name',$keyword,'both',false);
+                        $this->db->group_end();
+                        $this->db->where("doctors.doctor_show_status","active");
+                        $this->db->group_by('doctors.id');
+                        $this->db->order_by("doctors.id","desc");
+                $data = $this->db->get()->result();
         
         
         if(count($data)>0){
@@ -878,7 +908,8 @@ function notificationCount($user_id)
         }
         $doctor_ids = implode(",", $doct_id);
          
-            $data=$this->db->query("select id,hospital_name,hospital_image,doctor_name,doctor_image,designations,consultant_fee,blue_tick,rating,rating_count from doctors where doctor_show_status='active' and find_in_set(id,'".$doctor_ids."')")->result();
+            $now = date('Y-m-d H:i:s');
+            $data=$this->db->query("select doctors.id,doctors.hospital_name,doctors.hospital_image,doctors.doctor_name,doctors.doctor_image,doctors.designations,doctors.consultant_fee,doctors.blue_tick,doctors.rating,doctors.rating_count from doctors join doctor_subscriptions ds on ds.doctor_id = doctors.id where ds.status='active' and ds.featured_status=1 and ds.end_at >= '$now' and doctors.doctor_show_status='active' and find_in_set(doctors.id,'".$doctor_ids."')")->result();
             
         
             if(count($data)>0){
@@ -937,7 +968,8 @@ function notificationCount($user_id)
         }
         $doctor_ids = implode(",", $doct_id);
          
-            $data=$this->db->query("select id,hospital_name,hospital_image,doctor_name,doctor_image,designations,consultant_fee,blue_tick,rating,rating_count from doctors where doctor_show_status='active' and find_in_set(id,'".$doctor_ids."')")->result();
+            $now = date('Y-m-d H:i:s');
+            $data=$this->db->query("select doctors.id,doctors.hospital_name,doctors.hospital_image,doctors.doctor_name,doctors.doctor_image,doctors.designations,doctors.consultant_fee,doctors.blue_tick,doctors.rating,doctors.rating_count from doctors join doctor_subscriptions ds on ds.doctor_id = doctors.id where ds.status='active' and ds.featured_status=1 and ds.end_at >= '$now' and doctors.doctor_show_status='active' and find_in_set(doctors.id,'".$doctor_ids."')")->result();
             if(count($data)>0){
             $array=[];
             foreach ($data as $value) {

@@ -95,16 +95,17 @@ class Subscription_plans_model extends CI_Model {
         ));
 
         if (empty($all_ids)) {
-            return []; // Return empty array immediately to avoid DB error with empty where_in
+            return [];
         }
 
         $this->db->select('d.id, d.doctor_name, d.hospital_name, d.mobile_number');
         $this->db->from('doctors d');
-        // Join with doctor_subscriptions
+        // Join with doctor_subscriptions to find doctors who subscribed to this plan (by name match)
         $this->db->join('doctor_subscriptions ds', 'd.id = ds.doctor_id');
         $this->db->where_in('ds.doctor_subscription_plan_id', $all_ids);
         $this->db->where('ds.status', 'active');
-        $this->db->where('d.doctor_login_status', 'active');
+        // Use correct column name: doctor_show_status (not doctor_login_status)
+        $this->db->where('d.doctor_show_status', 'active');
         
         // Exclude doctors who are already assigned to THIS specific plan
         $this->db->where("d.id NOT IN (SELECT doctor_id FROM subscription_plan_doctors WHERE plan_id = $plan_id)", NULL, FALSE);

@@ -553,7 +553,7 @@ class Phonepe_hermes extends REST_Controller {
 
                 if ($log->type == 'doctor') {
                     $data['doctor_id']       = $log->user_id;
-                    $data['featured_status'] = 1;
+                    $data['featured_status'] = 0;
                 } else {
                     $data['user_id'] = $log->user_id;
                 }
@@ -566,7 +566,7 @@ class Phonepe_hermes extends REST_Controller {
                         'autopay_agreement_id' => $autopay_agreement_id,
                         'autopay_enabled'      => 1,
                         'payment_gateway'      => 'phonepe',
-                        'featured_status'      => 1
+                        'featured_status'      => 0
                     ]);
                 }
             }

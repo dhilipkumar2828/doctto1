@@ -1,0 +1,11 @@
+﻿--- Doctors Table Columns ---
+id access_token hospital_name hospital_image doctor_name doctor_image cover_image state city pincode designations mobile_number email specialisation specialist_in doctor_license_no digital_signature password address experience otp otp_status consultant_fee voice_call video_call chat_price aboutus youtube_channel_id tags gender doctor_show_status blue_tick rating rating_count doctor_login_status gst_number pan_number morning_start_time morning_end_time afternoon_start_time afternoon_end_time evening_start_time evening_end_time token platform latitude longitude created_date subscription_status subscription_expiry 
+
+--- Subscription Plans (Doctor Type) ---
+ID: 6 | Name: Classic Plan | Max: 10
+ID: 7 | Name: Advanced Plan | Max: 0
+ID: 8 | Name: Popular Plan | Max: 0
+
+--- Active Doctor Subscriptions ---
+DocID: 183 | Name: Dr T NAGARJUN | PlanID: 6 | SubStatus: active | ShowStatus: active
+

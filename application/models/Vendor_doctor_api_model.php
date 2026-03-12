@@ -1531,16 +1531,7 @@ class Vendor_doctor_api_model extends CI_Model {
            $this->db->where("date",$date);
         }
         $offline = $this->db->get('doctor_appointments')->num_rows();
-
-        $this->db->where("doctor_id",$doctor_id);
-        $this->db->where('payment_status', 'completed');
-        if($date!='')
-        {
-           $this->db->where("date",$date);
-        }
-        $online = $this->db->get('online_doctor_appointments')->num_rows();
-
-        return $offline + $online;
+        return $offline;
     }
 
     function completed($date,$doctor_id){
@@ -1551,6 +1542,7 @@ class Vendor_doctor_api_model extends CI_Model {
 
         $this->db->where("doctor_id",$doctor_id);
         $this->db->where("date",$date);
+        $this->db->where("doctor_status",'completed');
         $this->db->where("payment_status",'completed');
         $online = $this->db->get('online_doctor_appointments')->num_rows();
 
@@ -1593,8 +1585,9 @@ class Vendor_doctor_api_model extends CI_Model {
         $this->db->order_by("id","desc");
         $offline_data = $this->db->get('doctor_appointments')->result();
 
-        $this->db->select("id,patient_id,doctor_id,payment_status as doctor_status,date,time_slot_name,time_slot_value,consultation_fee,patient_name,patient_mobile,patient_age,patient_visiting_purpose,type as appointment_type, 'online' as source");
+        $this->db->select("id,patient_id,doctor_id,doctor_status,date,time_slot_name,time_slot_value,consultation_fee,patient_name,patient_mobile,patient_age,patient_visiting_purpose,type as appointment_type, 'online' as source");
         $this->db->where("doctor_id",$doctor_id); 
+        $this->db->where("doctor_status",'accept'); 
         $this->db->where("payment_status",'completed'); 
         if($date!='') { $this->db->where("date",$date); }
         $this->db->order_by("id","desc");
@@ -1712,17 +1705,17 @@ class Vendor_doctor_api_model extends CI_Model {
         $this->db->order_by("id","desc");
         $offline_data = $this->db->get("doctor_appointments")->result();
 
-        // Online records (completed only)
-        $online_data = [];
-        if ($doctor_status == 'completed') {
-            $this->db->select("id,patient_id,doctor_id,payment_status as doctor_status,date,time_slot_name,time_slot_value,consultation_fee,patient_name,patient_mobile,patient_age,patient_visiting_purpose,type as appointment_type,created_date, 'online' as source");
-            $this->db->where("doctor_id",$doctor_id);
-            $this->db->where("payment_status",'completed');
-            $this->db->order_by("id","desc");
-            $online_data = $this->db->get("online_doctor_appointments")->result();
-        }
+        // // Online records (completed only)
+        // $online_data = [];
+        // if ($doctor_status == 'completed') {
+        //     $this->db->select("id,patient_id,doctor_id,payment_status as doctor_status,date,time_slot_name,time_slot_value,consultation_fee,patient_name,patient_mobile,patient_age,patient_visiting_purpose,type as appointment_type,created_date, 'online' as source");
+        //     $this->db->where("doctor_id",$doctor_id);
+        //     $this->db->where("payment_status",'completed');
+        //     $this->db->order_by("id","desc");
+        //     $online_data = $this->db->get("online_doctor_appointments")->result();
+        // }
 
-        $data = array_merge($offline_data, $online_data);
+        $data = array_merge($offline_data);
         usort($data, function($a, $b) { return $b->id - $a->id; });
 
         if(count($data)>0){
@@ -1797,22 +1790,46 @@ class Vendor_doctor_api_model extends CI_Model {
         return array('status'=>FALSE,'message'=>"No data found");
     }  
 
-     function waiting_accepting($doctor_id,$doctor_status){
+      function waiting_accepting($doctor_id,$doctor_status){
 
+        $today = date('Y-m-d');
         $table = "doctor_appointments";
-        $this->db->select("id,patient_id,doctor_id,doctor_status,date,time_slot_name,time_slot_name,time_slot_value,consultation_fee,patient_name,patient_mobile,patient_age,patient_visiting_purpose,appointment_type");
+        $this->db->select("id,patient_id,doctor_id,doctor_status,date,time_slot_name,time_slot_name,time_slot_value,consultation_fee,patient_name,patient_mobile,patient_age,patient_visiting_purpose,appointment_type, 'offline' as source");
         $this->db->where("doctor_id",$doctor_id);
         $this->db->where("doctor_status",$doctor_status);
+        if($doctor_status == 'active' || $doctor_status == 'accept'){
+            $this->db->where("date >= ", $today);
+        }
         $this->db->order_by("id","desc");
-        $data = $this->db->get($table)->result();
+        $offline_data = $this->db->get($table)->result();
+
+        // $this->db->select("id,patient_id,doctor_id,doctor_status,date,time_slot_name,time_slot_name,time_slot_value,consultation_fee,patient_name,patient_mobile,patient_age,patient_visiting_purpose,type as appointment_type, 'online' as source");
+        // $this->db->where("doctor_id",$doctor_id);
+        // $this->db->where("doctor_status",$doctor_status);
+        // if($doctor_status == 'active' || $doctor_status == 'accept'){
+        //     $this->db->where("date >= ", $today);
+        //     $this->db->where("payment_status",'completed');
+        // }
+        // $this->db->order_by("id","desc");
+        // $online_data = $this->db->get('online_doctor_appointments')->result();
+
+        $data = array_merge($offline_data);
+        usort($data, function($a, $b) { return $b->id - $a->id; });
         if(count($data)>0){
             $array=[];
             foreach ($data as $value) {
                 $doctor_status=$value->doctor_status;
                //echo $doctor_status; die;
                 if ($doctor_status=='active') {
-                    
                     $status="Need to Accept";
+                } elseif ($doctor_status=='accept') {
+                    $status="Accepted";
+                } elseif ($doctor_status=='completed' || $doctor_status=='COMPLETED') {
+                    $status="Completed";
+                } elseif ($doctor_status=='reject') {
+                    $status="Cancelled";
+                } else {
+                    $status=$doctor_status;
                 }
                 $created_date=date("d M h:i A",strtotime($value->created_date));
                 $doctor_id=$value->doctor_id;
@@ -1877,14 +1894,14 @@ class Vendor_doctor_api_model extends CI_Model {
 
     function my_dashboard($doctor_id){ 
 
-        $this->db->select("id,doctor_id,doctor_status,date, time_slot_name, time_slot_value,consultation_fee,created_date,patient_id,patient_name,appointment_type,doctor_status, 'offline' as source");
+        $this->db->select("id,doctor_id,doctor_status,date, time_slot_name, time_slot_value,consultation_fee,created_date,patient_id,patient_name,appointment_type, 'offline' as source");
         $this->db->where("doctor_id",$doctor_id);
         $this->db->order_by("id","desc");
         $offline_data = $this->db->get('doctor_appointments')->result();
 
-        $this->db->select("id,doctor_id,payment_status as doctor_status,date, time_slot_name, time_slot_value,consultation_fee,created_date,patient_id,patient_name,type as appointment_type, 'online' as source");
+        $this->db->select("id,doctor_id,doctor_status,date, time_slot_name, time_slot_value,consultation_fee,created_date,patient_id,patient_name,type as appointment_type, 'online' as source");
         $this->db->where("doctor_id",$doctor_id);
-        $this->db->where('payment_status', 'completed');
+        $this->db->where("payment_status", 'completed');
         $this->db->order_by("id","desc");
         $online_data = $this->db->get('online_doctor_appointments')->result();
 
@@ -2064,8 +2081,8 @@ class Vendor_doctor_api_model extends CI_Model {
         $data = $this->db->get("doctor_appointments")->row();
 
         if (!$data) {
-            // Try online (completed only)
-            $this->db->select("*, payment_status as doctor_status, type as appointment_type, 'online' as source");
+            // Try online (paid only)
+            $this->db->select("*, doctor_status, type as appointment_type, 'online' as source");
             $this->db->where("doctor_id", $doctor_id);
             $this->db->where("id", $appointment_id);
             $this->db->where('payment_status', 'completed');
@@ -2163,7 +2180,17 @@ class Vendor_doctor_api_model extends CI_Model {
         $this->db->where("id",$appointment_id);
         $this->db->where("doctor_status",'active');
         $data = $this->db->get("doctor_appointments")->row();
-        if($data>0)
+        
+        if(!$data)
+        {
+            $this->db->where("doctor_id",$doctor_id);
+            $this->db->where("id",$appointment_id);
+            $this->db->where("doctor_status",'active');
+            $this->db->where("payment_status",'completed');
+            $data = $this->db->get("online_doctor_appointments")->row();
+        }
+
+        if($data)
         {
         if($data->doctor_status == "active")
         {
@@ -2247,12 +2274,12 @@ class Vendor_doctor_api_model extends CI_Model {
     }
     
     function pending_count($date,$doctor_id){
-        $table = "doctor_appointments";
-        $this->db->select("id,doctor_status");
         $this->db->where("doctor_id",$doctor_id);
         $this->db->where("date",$date);
         $this->db->where("doctor_status",'active');
-        return $this->db->get($table)->num_rows();
+        $offline = $this->db->get('doctor_appointments')->num_rows();
+
+        return $offline;
     }
     
      function accept_count($doctor_id){
@@ -2265,6 +2292,7 @@ class Vendor_doctor_api_model extends CI_Model {
 
         $this->db->where("doctor_id",$doctor_id);
         $this->db->where("date>=",$date);
+        $this->db->where("doctor_status",'accept');
         $this->db->where('payment_status', 'completed');
         $online = $this->db->get('online_doctor_appointments')->num_rows();
 
@@ -2414,13 +2442,13 @@ class Vendor_doctor_api_model extends CI_Model {
         $table = 'doctor_appointments';
         $appoint_row = $this->db->where(array('id'=>$appointment_id))->get($table)->row();
         
-        if(!$appoint_row) {
-            $table = 'online_doctor_appointments';
-            $appoint_row = $this->db->where(array('id'=>$appointment_id))->get($table)->row();
-            $data = array('doctor_status'=>'completed');
-        } else {
+        // if(!$appoint_row) {
+        //     $table = 'online_doctor_appointments';
+        //     $appoint_row = $this->db->where(array('id'=>$appointment_id))->get($table)->row();
+        //     $data = array('doctor_status'=>'completed');
+        // } else {
             $data = array('doctor_status'=>'completed','completed_date'=>$cdate);
-        }
+        // }
 
         if(!$appoint_row) {
             return array('status'=>FALSE,'message'=>"Invalid appointment");

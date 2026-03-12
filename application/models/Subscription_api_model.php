@@ -227,23 +227,32 @@ class Subscription_api_model extends CI_Model {
         return $this->db->insert('user_subscribed_doctors', $insert_data);
     }
 
-    public function get_plan_doctors($plan_id = null) {
+    public function get_plan_doctors($plan_id = null, $exclude_user_id = null) {
         $this->db->select('spd.plan_id, d.id as doctor_id, d.doctor_name, d.doctor_image, d.designations, d.mobile_number, d.morning_start_time, d.morning_end_time, d.afternoon_start_time, d.afternoon_end_time, d.evening_start_time, d.evening_end_time, d.specialisation, d.specialist_in, d.rating, d.rating_count, d.blue_tick, spd.sort_order, sp.name as plan_name, sp.id as subscription_plan_id, sp.price as plan_price');
         $this->db->from('subscription_plan_doctors spd');
         $this->db->join('doctors d', 'spd.doctor_id = d.id');
         
-        // Join with doctor_subscriptions to verify payment and featured status
+        // Join with doctor_subscriptions to verify payment and active status
         $this->db->join('doctor_subscriptions ds', 'ds.doctor_id = d.id AND ds.status = \'active\'');
         
         // Join with subscription_plans (Unified table)
-        // Since spd.plan_id might still point to the old table ID (1,2,3), we match by name if possible
         $this->db->join('subscription_plans sp', 'sp.id = ds.doctor_subscription_plan_id');
 
         if ($plan_id) {
             $this->db->where('ds.doctor_subscription_plan_id', $plan_id);
         }
 
+        // Rigor checks: Expiry, Account Status, Featured
+        $this->db->where('ds.end_at >=', date('Y-m-d H:i:s'));
+        $this->db->where('d.doctor_show_status', 'active');
         $this->db->where('ds.featured_status', 1);
+
+        // Exclude doctors already subscribed by this specific user
+        if ($exclude_user_id) {
+             $escaped_id = $this->db->escape($exclude_user_id);
+             $this->db->where("d.id NOT IN (SELECT doctor_id FROM user_subscribed_doctors usd JOIN user_subscriptions us ON us.id = usd.subscription_id WHERE us.user_id = $escaped_id AND usd.status = 'active' AND us.status = 'active')", NULL, FALSE);
+        }
+
         $this->db->group_by('d.id');
         $this->db->order_by('spd.sort_order', 'ASC');
 
@@ -262,13 +271,23 @@ class Subscription_api_model extends CI_Model {
     }
 
 
-    public function get_all_subscribed_doctors() {
+    public function get_all_subscribed_doctors($exclude_user_id = null) {
         $this->db->select('ds.id as subscription_id, ds.start_at, ds.end_at, ds.status as subscription_status, d.id as doctor_id, d.doctor_name, d.doctor_image, d.designations, d.mobile_number, d.morning_start_time, d.morning_end_time, d.afternoon_start_time, d.afternoon_end_time, d.evening_start_time, d.evening_end_time, d.specialisation, d.specialist_in, d.rating, d.rating_count, d.blue_tick, sp.name as plan_name, sp.price as plan_price');
         $this->db->from('doctors d');
         $this->db->join('doctor_subscriptions ds', 'd.id = ds.doctor_id');
         $this->db->join('subscription_plans sp', 'sp.id = ds.doctor_subscription_plan_id');
+        
+        // Filter by subscription status and rigor checks
         $this->db->where('ds.status', 'active');
+        $this->db->where('ds.end_at >=', date('Y-m-d H:i:s'));
+        $this->db->where('d.doctor_show_status', 'active');
         $this->db->where('ds.featured_status', 1);
+
+        // Exclude doctors already subscribed by this specific user
+        if ($exclude_user_id) {
+            $this->db->where("d.id NOT IN (SELECT doctor_id FROM user_subscribed_doctors usd JOIN user_subscriptions us ON us.id = usd.subscription_id WHERE us.user_id = '$exclude_user_id' AND usd.status = 'active' AND us.status = 'active')", NULL, FALSE);
+        }
+
         $this->db->group_by('d.id');
         $doctors = $this->db->get()->result();
 

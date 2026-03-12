@@ -774,11 +774,38 @@ public function subscribe_to_doctor_post() {
      */
     public function subscribed_doctors_list_post()
     {
-        $doctors = $this->subscription_api_model->get_all_subscribed_doctors();
+        $user_id = $this->post('user_id');
+        $plan_id = $this->post('plan_id');
+
+        // Check Authentication if no IDs provided
+        if (empty($user_id) && empty($plan_id)) {
+            if (method_exists($this->common_model, 'auth')) {
+                $auth = $this->common_model->auth();
+                if ($auth && $auth->id && ($auth->type == 'user' || $auth->type == 'doctor')) {
+                    $user_id = $auth->id;
+                }
+            }
+        }
+
+        // If user_id is provided but no plan_id, find their current active plan
+        if ($user_id && empty($plan_id)) {
+            $subscription = $this->subscription_api_model->get_my_subscription($user_id, 'customer');
+            if ($subscription) {
+                $plan_id = $subscription->plan_id;
+            }
+        }
+
+        // Fetch doctors based on plan or global list, with exclusion for existing subscriptions
+        if (!empty($plan_id)) {
+            $doctors = $this->subscription_api_model->get_plan_doctors($plan_id, $user_id);
+        } else {
+            $doctors = $this->subscription_api_model->get_all_subscribed_doctors($user_id);
+        }
+
         if ($doctors) {
             $this->response(['status' => 'success', 'data' => $doctors], REST_Controller::HTTP_OK);
         } else {
-            $this->response(['status' => 'error', 'message' => 'No doctors found'], REST_Controller::HTTP_OK);
+            $this->response(['status' => 'error', 'message' => 'No available doctors found for your plan.'], REST_Controller::HTTP_OK);
         }
     }
 
