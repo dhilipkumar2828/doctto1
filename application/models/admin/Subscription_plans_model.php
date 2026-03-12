@@ -9,15 +9,21 @@ class Subscription_plans_model extends CI_Model {
     }
 
     function get_all_plans() {
-        $this->db->select('sp.*, COUNT(spd.doctor_id) as assigned_doctors_count');
+        $this->db->select('sp.*, COUNT(spd.doctor_id) as assigned_doctors_count, cp.max_doctors_allowed as customer_max_doctors');
         $this->db->from('subscription_plans sp');
         $this->db->join('subscription_plan_doctors spd', 'sp.id = spd.plan_id', 'left');
+        $this->db->join('subscription_plans cp', 'sp.name = cp.name AND cp.plan_type = "customer"', 'left');
         $this->db->where('sp.plan_type', 'doctor');
         $this->db->group_by('sp.id');
         $this->db->order_by('sp.id', 'ASC');
         $result = $this->db->get()->result();
         
         if (count($result) > 0) {
+            foreach ($result as $row) {
+                if (isset($row->customer_max_doctors) && $row->customer_max_doctors !== NULL) {
+                    $row->max_doctors_allowed = $row->customer_max_doctors;
+                }
+            }
             return $result;
         } else {
             return FALSE;
@@ -25,7 +31,14 @@ class Subscription_plans_model extends CI_Model {
     }
 
     function get_plan_by_id($id) {
-        $result = $this->db->where(['id' => $id, 'plan_type' => 'doctor'])->get('subscription_plans')->row();
+        $this->db->select('sp.*, cp.max_doctors_allowed as customer_max_doctors');
+        $this->db->from('subscription_plans sp');
+        $this->db->join('subscription_plans cp', 'sp.name = cp.name AND cp.plan_type = "customer"', 'left');
+        $this->db->where(['sp.id' => $id, 'sp.plan_type' => 'doctor']);
+        $result = $this->db->get()->row();
+        if ($result && isset($result->customer_max_doctors) && $result->customer_max_doctors !== NULL) {
+            $result->max_doctors_allowed = $result->customer_max_doctors;
+        }
         return $result;
     }
 
@@ -121,8 +134,8 @@ class Subscription_plans_model extends CI_Model {
     }
 
     function get_plan_max_doctors($plan_id) {
-        $result = $this->db->select('max_doctors_allowed')->where('id', $plan_id)->get('subscription_plans')->row();
-        return $result ? $result->max_doctors_allowed : 0;
+        $plan = $this->get_plan_by_id($plan_id);
+        return $plan ? $plan->max_doctors_allowed : 0;
     }
 
     function is_doctor_assigned($plan_id, $doctor_id) {
@@ -153,10 +166,21 @@ class Subscription_plans_model extends CI_Model {
     }
 
     function get_active_plans() {
-        $this->db->where('plan_type', 'doctor');
-        $this->db->where('is_active', 1);
-        $this->db->order_by('id', 'ASC');
-        $result = $this->db->get('subscription_plans')->result();
+        $this->db->select('sp.*, cp.max_doctors_allowed as customer_max_doctors');
+        $this->db->from('subscription_plans sp');
+        $this->db->join('subscription_plans cp', 'sp.name = cp.name AND cp.plan_type = "customer"', 'left');
+        $this->db->where('sp.plan_type', 'doctor');
+        $this->db->where('sp.is_active', 1);
+        $this->db->order_by('sp.id', 'ASC');
+        $result = $this->db->get()->result();
+        
+        if (count($result) > 0) {
+            foreach ($result as $row) {
+                if (isset($row->customer_max_doctors) && $row->customer_max_doctors !== NULL) {
+                    $row->max_doctors_allowed = $row->customer_max_doctors;
+                }
+            }
+        }
         return $result;
     }
 }

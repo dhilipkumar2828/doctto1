@@ -39,7 +39,8 @@ class Doctor_subscriptions_model extends CI_Model {
     }
 
     function get_all_user_subscriptions($user_id = null, $status = null) {
-        $this->db->select('us.*, u.first_name, u.last_name, u.phone, u.email, sp.name as plan_name, sp.price as plan_price, sp.description as plan_description');
+        $this->db->select('us.*, u.first_name, u.last_name, u.phone, u.email, sp.name as plan_name, sp.price as plan_price, sp.description as plan_description, sp.max_doctors_allowed as consultations_remaining');
+        $this->db->select('0 as consultations_used'); // Temporary fix since user_subscribed_doctors table does not exist
         $this->db->from('user_subscriptions us');
         $this->db->join('users u', 'us.user_id = u.id');
         $this->db->join('subscription_plans sp', 'us.plan_id = sp.id');
