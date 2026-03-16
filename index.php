@@ -74,7 +74,8 @@ switch (ENVIRONMENT) {
         ini_set('display_errors', 0);
         if (version_compare(PHP_VERSION, '5.3', '>=')) {
             error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_STRICT & ~E_USER_NOTICE & ~E_USER_DEPRECATED);
-        } else {
+        }
+        else {
             error_reporting(E_ALL & ~E_NOTICE & ~E_STRICT & ~E_USER_NOTICE);
         }
         break;
@@ -188,13 +189,14 @@ if (defined('STDIN')) {
 
 if (($_temp = realpath($system_path)) !== FALSE) {
     $system_path = $_temp . DIRECTORY_SEPARATOR;
-} else {
+}
+else {
     // Ensure there's a trailing slash
     $system_path = strtr(
-                    rtrim($system_path, '/\\'),
-                    '/\\',
-                    DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR
-            ) . DIRECTORY_SEPARATOR;
+        rtrim($system_path, '/\\'),
+        '/\\',
+        DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR
+    ) . DIRECTORY_SEPARATOR;
 }
 
 // Is the system path correct?
@@ -225,20 +227,23 @@ define('SYSDIR', basename(BASEPATH));
 if (is_dir($application_folder)) {
     if (($_temp = realpath($application_folder)) !== FALSE) {
         $application_folder = $_temp;
-    } else {
+    }
+    else {
         $application_folder = strtr(
-                rtrim($application_folder, '/\\'),
-                '/\\',
-                DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR
+            rtrim($application_folder, '/\\'),
+            '/\\',
+            DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR
         );
     }
-} elseif (is_dir(BASEPATH . $application_folder . DIRECTORY_SEPARATOR)) {
+}
+elseif (is_dir(BASEPATH . $application_folder . DIRECTORY_SEPARATOR)) {
     $application_folder = BASEPATH . strtr(
-                    trim($application_folder, '/\\'),
-                    '/\\',
-                    DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR
+        trim($application_folder, '/\\'),
+        '/\\',
+        DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR
     );
-} else {
+}
+else {
     header('HTTP/1.1 503 Service Unavailable.', TRUE, 503);
     echo 'Your application folder path does not appear to be set correctly. Please open the following file and correct this: ' . SELF;
     exit(3); // EXIT_CONFIG
@@ -249,23 +254,27 @@ define('APPPATH', $application_folder . DIRECTORY_SEPARATOR);
 // The path to the "views" directory
 if (!isset($view_folder[0]) && is_dir(APPPATH . 'views' . DIRECTORY_SEPARATOR)) {
     $view_folder = APPPATH . 'views';
-} elseif (is_dir($view_folder)) {
+}
+elseif (is_dir($view_folder)) {
     if (($_temp = realpath($view_folder)) !== FALSE) {
         $view_folder = $_temp;
-    } else {
+    }
+    else {
         $view_folder = strtr(
-                rtrim($view_folder, '/\\'),
-                '/\\',
-                DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR
+            rtrim($view_folder, '/\\'),
+            '/\\',
+            DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR
         );
     }
-} elseif (is_dir(APPPATH . $view_folder . DIRECTORY_SEPARATOR)) {
+}
+elseif (is_dir(APPPATH . $view_folder . DIRECTORY_SEPARATOR)) {
     $view_folder = APPPATH . strtr(
-                    trim($view_folder, '/\\'),
-                    '/\\',
-                    DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR
+        trim($view_folder, '/\\'),
+        '/\\',
+        DIRECTORY_SEPARATOR . DIRECTORY_SEPARATOR
     );
-} else {
+}
+else {
     header('HTTP/1.1 503 Service Unavailable.', TRUE, 503);
     echo 'Your view folder path does not appear to be set correctly. Please open the following file and correct this: ' . SELF;
     exit(3); // EXIT_CONFIG

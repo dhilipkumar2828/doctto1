@@ -47,7 +47,7 @@
                     <div class="hr-line-dashed"></div>
                     <div class="form-group">
                         <div class="col-sm-4 col-sm-offset-2">
-                            <button class="btn btn-primary" type="submit" id="btn_category"> <i class="fa fa-plus-circle"></i> Add</button>
+                            <button class="btn btn-primary" type="submit" id="btn_category"> <i class="fa fa-save"></i> Update</button>
                         </div>
                     </div>
                 </form>
@@ -61,20 +61,38 @@
 
   $('#btn_category').click(function(){
         $('.error').remove();
-            var errr=0;
-      if($('#title').val()=='')
+        
+        // Sync CKEditor data to textarea
+        if (typeof editors !== 'undefined') {
+            for (var id in editors) {
+                if (editors.hasOwnProperty(id)) {
+                    $('#' + id).val(editors[id].getData());
+                }
+            }
+        }
+
+        var title = $('#title').val().trim();
+        var description = $('#description').val().trim();
+        var status = $('#status').val();
+
+      if(title =='')
       {
          $('#title').after('<span class="error" style="color:red;font-size: 18px;margin-left: 18px;">Enter Title</span>');
          $('#title').focus();
          return false;
       }
-      else if($('#description').val()=='')
+      else if(description =='' || description == '<p>&nbsp;</p>' || description == '<p></p>')
       {
-         $('#description').after('<span class="error" style="color:red;font-size: 18px;margin-left: 18px;">Enter Description</span>');
-         $('#description').focus();
+         // Place error after the editor UI if possible
+         var editorElement = $('#description').next('.ck-editor');
+         if (editorElement.length) {
+             editorElement.after('<span class="error" style="color:red;font-size: 18px;margin-left: 18px;display:block;">Enter Description</span>');
+         } else {
+             $('#description').after('<span class="error" style="color:red;font-size: 18px;margin-left: 18px;display:block;">Enter Description</span>');
+         }
          return false;
       }
-      else if($('#status').val()=='')
+      else if(status =='')
       {
          $('#status').after('<span class="error" style="color:red;font-size: 18px;margin-left: 18px;">Select Status</span>');
          $('#status').focus();
@@ -96,11 +114,17 @@
 </script>
 
 
-<script type="text/javascript" src="https://cdn.jsdelivr.net/jquery/1/jquery.min.js"></script>
-    <script src="https://cdn.ckeditor.com/ckeditor5/1.0.0-alpha.2/classic/ckeditor.js"></script>
+    <script src="https://cdn.ckeditor.com/ckeditor5/35.0.1/classic/ckeditor.js"></script>
 <script>
+    var editors = {};
+    $(document).ready(function() {
         var allEditors = document.querySelectorAll('.ck_editor_txt');
         for (var i = 0; i < allEditors.length; ++i) {
-          ClassicEditor.create(allEditors[i]);
+            ClassicEditor.create(allEditors[i]).then(editor => {
+                editors[editor.sourceElement.id] = editor;
+            }).catch(error => {
+                console.error(error);
+            });
         }
-    </script>
+    });
+</script>

@@ -1,5 +1,5 @@
 <style>
-    .cat_image{
+    .cat_image {
         width: 100px;
         height: 100px;
         object-fit: scale-down;
@@ -14,31 +14,37 @@
                 <div class="ibox-title">
                     <h5>Content</h5>
                     <div class="ibox-tools">
-                        <a href="<?= base_url() ?>admin/dashboard">
+                        <a href="<?= base_url()?>admin/dashboard">
                             <button class="btn btn-primary">BACK</button>
                         </a>
-                  
-                        <!-- <a href="<?= base_url() ?>admin/content/add">
+
+                        <a href="<?= base_url()?>admin/content/add">
                             <button class="btn btn-primary">+ Add New</button>
-                        </a> -->
+                        </a>
                     </div>
 
                     <?php if (!empty($this->session->flashdata('success_message'))) { ?>
-                        <div class="alert alert-success fade in alert-dismissable"><a href="#" class="close" data-dismiss="alert" aria-label="close">×</a>
-                            <strong> Success!</strong> <?= $this->session->flashdata('success_message') ?>
-                        </div>
-                    <?php } ?>
+                    <div class="alert alert-success fade in alert-dismissable"><a href="#" class="close"
+                            data-dismiss="alert" aria-label="close">×</a>
+                        <strong> Success!</strong>
+                        <?= $this->session->flashdata('success_message')?>
+                    </div>
+                    <?php
+}?>
                     <?php if (!empty($this->session->flashdata('error_message'))) { ?>
-                        <div class="alert alert-danger fade in alert-dismissable"><a href="#" class="close" data-dismiss="alert" aria-label="close">×</a>
-                            <strong>Failed!</strong> <?= $this->session->flashdata('error_message') ?>
-                        </div>
-                    <?php }
-                    ?>
+                    <div class="alert alert-danger fade in alert-dismissable"><a href="#" class="close"
+                            data-dismiss="alert" aria-label="close">×</a>
+                        <strong>Failed!</strong>
+                        <?= $this->session->flashdata('error_message')?>
+                    </div>
+                    <?php
+}
+?>
                 </div>
                 <div class="ibox-content">
 
                     <div class="table-responsive">
-                        <table class="table table-striped table-bordered table-hover dataTables-example" >
+                        <table class="table table-striped table-bordered table-hover dataTables-example">
                             <thead>
                                 <tr>
                                     <th>#</th>
@@ -49,33 +55,39 @@
                             </thead>
                             <tbody>
                                 <?php
-                                $i = 1;
-                            if(count($content))
-                            {
-                                foreach ($content as $v) {
-                                    ?>
-                                    <tr class="gradeX">
-                                        <td><?= $i ?></td>
-                                        <td><?= $v->title ?></td>
-                                        <td><?= $v->description ?></td>
-                                        <td>
-                                            <a href="<?= base_url() ?>admin/content/edit/<?= $v->id ?>">
-                                                <button title="This operation is disabled in demo !" class="btn btn-xs btn-primary">
-                                                    Edit
-                                                </button>
-                                            </a>
-                                            <!-- <a href="<?= base_url() ?>admin/content/delete/<?= $v->id ?>">
+$i = 1;
+if (count($content)) {
+    foreach ($content as $v) {
+?>
+                                <tr class="gradeX">
+                                    <td>
+                                        <?= $i?>
+                                    </td>
+                                    <td>
+                                        <?= $v->title?>
+                                    </td>
+                                    <td>
+                                        <?= $v->description?>
+                                    </td>
+                                    <td>
+                                        <a href="<?= base_url()?>admin/content/edit/<?= $v->id?>">
+                                            <button title="This operation is disabled in demo !"
+                                                class="btn btn-xs btn-primary">
+                                                Edit
+                                            </button>
+                                        </a>
+                                        <!-- <a href="<?= base_url()?>admin/content/delete/<?= $v->id?>">
                                                 <button title="Delete Category" class="btn btn-xs btn-danger">
                                                     Delete
                                                 </button>
                                             </a> -->
-                                        </td>
-                                    </tr>
-                                    <?php
-                                    $i++;
-                                }
-                            }
-                                ?>
+                                    </td>
+                                </tr>
+                                <?php
+        $i++;
+    }
+}
+?>
                             </tbody>
                         </table>
                     </div>
