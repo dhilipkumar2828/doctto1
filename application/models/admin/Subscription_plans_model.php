@@ -77,10 +77,22 @@ class Subscription_plans_model extends CI_Model {
     }
 
     function get_assigned_doctors($plan_id) {
-        $this->db->select('spd.*, d.doctor_name, d.hospital_name, d.mobile_number');
+        $this->db->select('spd.*, d.doctor_name, d.hospital_name, d.mobile_number, sp.name as plan_name');
         $this->db->from('subscription_plan_doctors spd');
         $this->db->join('doctors d', 'spd.doctor_id = d.id');
+        $this->db->join('subscription_plans sp', 'spd.plan_id = sp.id');
         $this->db->where('spd.plan_id', $plan_id);
+        $this->db->order_by('spd.sort_order', 'ASC');
+        $result = $this->db->get()->result();
+        return $result;
+    }
+
+    function get_all_assigned_doctors() {
+        $this->db->select('spd.*, d.doctor_name, d.hospital_name, d.mobile_number, sp.name as plan_name');
+        $this->db->from('subscription_plan_doctors spd');
+        $this->db->join('doctors d', 'spd.doctor_id = d.id');
+        $this->db->join('subscription_plans sp', 'spd.plan_id = sp.id');
+        $this->db->order_by('sp.name', 'ASC');
         $this->db->order_by('spd.sort_order', 'ASC');
         $result = $this->db->get()->result();
         return $result;
@@ -124,6 +136,26 @@ class Subscription_plans_model extends CI_Model {
         $this->db->where("d.id NOT IN (SELECT doctor_id FROM subscription_plan_doctors WHERE plan_id = $plan_id)", NULL, FALSE);
         
         $this->db->group_by('d.id');
+        $result = $this->db->get()->result();
+        return $result;
+    }
+
+    function get_all_available_doctors_for_assignments() {
+        // This gets all active doctors who have an active subscription 
+        // and can be assigned to their respective plan lists.
+        $this->db->select('d.id, d.doctor_name, d.hospital_name, d.mobile_number, sp.id as plan_id, sp.name as plan_name');
+        $this->db->from('doctors d');
+        $this->db->join('doctor_subscriptions ds', 'd.id = ds.doctor_id');
+        // We match with subscription_plans to get the target mapping
+        // This model assumes there's a link between the subscription and the manage list
+        $this->db->join('subscription_plans sp', 'ds.doctor_subscription_plan_id = sp.id OR ds.doctor_subscription_plan_id IN (SELECT id FROM doctor_subscription_plans WHERE name = sp.name)');
+        $this->db->where('ds.status', 'active');
+        $this->db->where('d.doctor_show_status', 'active');
+        $this->db->where('sp.plan_type', 'doctor');
+        
+        // Exclude already assigned pairs
+        $this->db->where("NOT EXISTS (SELECT 1 FROM subscription_plan_doctors spd WHERE spd.doctor_id = d.id AND spd.plan_id = sp.id)", NULL, FALSE);
+        
         $result = $this->db->get()->result();
         return $result;
     }

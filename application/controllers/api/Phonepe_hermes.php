@@ -104,7 +104,7 @@ class Phonepe_hermes extends REST_Controller
         return [
             'Content-Type: application/json',
             'Authorization: O-Bearer ' . $access_token,
-            'X-MERCHANT-ID: ' . PHONEPE_MERCHANT_ID,
+            // 'X-MERCHANT-ID: ' . PHONEPE_MERCHANT_ID,
         ];
     }
 
