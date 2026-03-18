@@ -1,4 +1,4 @@
-/application/config/database.php
+# /application/config/database.php
 /check_*.php
 /create_test_sub.php
 /get_plans_data.php

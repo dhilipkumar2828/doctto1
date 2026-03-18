@@ -17,7 +17,7 @@ $current_plan_id = isset($current_plan_id) ? $current_plan_id : NULL;
         <div class="col-lg-12">
             <div class="ibox float-e-margins">
                 <div class="ibox-title">
-                    <h5>Manage Doctors for <?= $current_plan_id ? "Plan: " . (isset($plan->name) ? $plan->name : '') : "All Subscription Plans" ?></h5>
+                    <h5>Manage Doctors</h5>
                     <div class="ibox-tools">
                         <a href="<?= base_url() ?>admin/subscription_plans">
                             <button class="btn btn-primary btn-sm">BACK</button>
@@ -30,19 +30,6 @@ $current_plan_id = isset($current_plan_id) ? $current_plan_id : NULL;
                     </div>
                 </div>
 
-                <div class="ibox-content">
-                    <?php if ($current_plan_id): ?>
-                    <div class="row m-b-md">
-                        <div class="col-md-12">
-                            <div class="p-xs b-r-sm bg-muted">
-                                <strong>Plan Details:</strong> 
-                                <span class="m-l-sm"><i class="fa fa-info-circle"></i> <?= isset($plan->description) ? $plan->description : '' ?></span>
-                                <span class="m-l-lg"><i class="fa fa-user-md"></i> Limit: <?= count($assigned_doctors) ?> / <?= isset($plan->max_doctors_allowed) ? $plan->max_doctors_allowed : 0 ?></span>
-                                <span class="m-l-lg text-primary"><strong>₹<?= isset($plan->price) ? number_format($plan->price, 2) : '0.00' ?> / Month</strong></span>
-                            </div>
-                        </div>
-                    </div>
-                    <?php endif; ?>
 
                     <?php if (!empty($this->session->flashdata('success_message'))) { ?>
                         <div class="alert alert-success fade in alert-dismissable">
@@ -64,7 +51,7 @@ $current_plan_id = isset($current_plan_id) ? $current_plan_id : NULL;
                                 <tr>
                                     <th>#</th>
                                     <th>Doctor / Title</th>
-                                    <th>Banner</th>
+                                    <th>Image</th>
                                     <th>Plan Name</th>
                                     <th>Hospital Name</th>
                                     <th>Mobile Number</th>
@@ -86,7 +73,7 @@ $current_plan_id = isset($current_plan_id) ? $current_plan_id : NULL;
                                                 <?php if(!empty($doctor->app_image)): ?>
                                                     <img class="cat_image" src="<?= base_url() ?>uploads/doctor_banners/<?= $doctor->app_image ?>" alt="Banner">
                                                 <?php else: ?>
-                                                    <span class="text-muted small">No Banner</span>
+                                                    <span class="text-muted small">No Image</span>
                                                 <?php endif; ?>
                                             </td>
                                             <td><span class="label label-primary"><?= isset($doctor->plan_name) ? $doctor->plan_name : '' ?></span></td>
@@ -126,6 +113,7 @@ $current_plan_id = isset($current_plan_id) ? $current_plan_id : NULL;
 <script>
 $(document).ready(function() {
     $('.dataTables-example').DataTable({
+        destroy: true,
         pageLength: 10,
         responsive: true,
         dom: '<"html5buttons"B>lTfgitp',

@@ -12,7 +12,9 @@
 
 <script>
     $(document).ready(function () {
+        $.fn.dataTable.ext.errMode = 'none';
         $('.dataTables-example').DataTable({
+            destroy: true,
             pageLength: 10,
             responsive: true,
             order: [[0, "asc"]],

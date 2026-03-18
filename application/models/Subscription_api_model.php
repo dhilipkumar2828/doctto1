@@ -8,7 +8,26 @@ class Subscription_api_model extends CI_Model
     {
         $this->db->where('plan_type', $type);
         $this->db->where('is_active', 1);
-        return $this->db->get('subscription_plans')->result();
+        $plans = $this->db->get('subscription_plans')->result();
+        
+        if ($plans) {
+            foreach ($plans as $plan) {
+                $this->db->select('spd.doctor_id, d.doctor_name, spd.title, spd.app_image');
+                $this->db->from('subscription_plan_doctors spd');
+                $this->db->join('doctors d', 'd.id = spd.doctor_id', 'left');
+                $this->db->where('spd.plan_id', $plan->id);
+                $this->db->order_by('spd.sort_order', 'ASC');
+                $plan_doctors = $this->db->get()->result();
+                
+                foreach ($plan_doctors as $doc) {
+                    $doc->app_image = !empty($doc->app_image) ? base_url() . 'uploads/doctor_banners/' . $doc->app_image : '';
+                }
+                
+                $plan->plan_doctors = $plan_doctors;
+            }
+        }
+        
+        return $plans;
     }
 
     public function get_popular_plan($type)
@@ -247,18 +266,18 @@ class Subscription_api_model extends CI_Model
 
     public function get_plan_doctors($plan_id = null, $exclude_user_id = null)
     {
-        $this->db->select('spd.plan_id, d.id as doctor_id, d.doctor_name, d.doctor_image, d.designations, d.mobile_number, d.morning_start_time, d.morning_end_time, d.afternoon_start_time, d.afternoon_end_time, d.evening_start_time, d.evening_end_time, d.specialisation, d.specialist_in, d.rating, d.rating_count, d.blue_tick, spd.sort_order, sp.name as plan_name, sp.id as subscription_plan_id, sp.price as plan_price');
+        $this->db->select('spd.plan_id, spd.app_image, d.id as doctor_id, d.doctor_name, d.doctor_image, d.designations, d.mobile_number, d.morning_start_time, d.morning_end_time, d.afternoon_start_time, d.afternoon_end_time, d.evening_start_time, d.evening_end_time, d.specialisation, d.specialist_in, d.rating, d.rating_count, d.blue_tick, spd.sort_order, sp.name as plan_name, sp.id as subscription_plan_id, sp.price as plan_price');
         $this->db->from('subscription_plan_doctors spd');
         $this->db->join('doctors d', 'spd.doctor_id = d.id');
 
         // Join with doctor_subscriptions to verify payment and active status
         $this->db->join('doctor_subscriptions ds', 'ds.doctor_id = d.id AND ds.status = \'active\'');
 
-        // Join with subscription_plans (Unified table)
-        $this->db->join('subscription_plans sp', 'sp.id = ds.doctor_subscription_plan_id');
+        // Join with subscription_plans using the plan_id they were assigned to (spd.plan_id)
+        $this->db->join('subscription_plans sp', 'sp.id = spd.plan_id');
 
         if ($plan_id) {
-            $this->db->where('ds.doctor_subscription_plan_id', $plan_id);
+            $this->db->where('spd.plan_id', $plan_id);
         }
 
         // Rigor checks: Expiry, Account Status, Featured
@@ -279,6 +298,7 @@ class Subscription_api_model extends CI_Model
         // print_r($this->db->last_query());
         // die;
         foreach ($doctors as $doc) {
+            $doc->app_image = !empty($doc->app_image) ? base_url() . 'uploads/doctor_banners/' . $doc->app_image : '';
             $doc->doctor_image = !empty($doc->doctor_image) ? base_url() . 'uploads/doctors/' . $doc->doctor_image : base_url() . 'uploads/profile-icon-3.png';
             $doc->specialisation_name = $this->get_specialisation_name($doc->specialisation);
             $designation_names = $this->get_designation_names($doc->designations);

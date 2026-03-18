@@ -61,7 +61,6 @@
                             <thead>
                                 <tr>
                                     <th>#</th>
-                                    <th>Consultation</th>
                                     <th>Name</th>
                                     <th>Image</th>
                                     <th>Status</th>
@@ -76,7 +75,6 @@
                                     ?>
                                     <tr class="gradeX">
                                         <td><?= $i ?></td>
-                                         <td><?= $v->consultation ?></td>
                                         <td><?= $v->name ?></td>
                                         <td>
                                             <?php if($v->image!=''){ ?>
