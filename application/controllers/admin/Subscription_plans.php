@@ -325,39 +325,146 @@ class Subscription_plans extends MY_Controller {
             $this->session->set_flashdata('error_message', "Failed to assign $error_count doctor(s). Check limits or existing assignments.");
         }
 
-        redirect('admin/subscription_plans/manage_doctors');
+        $redirect_url = $this->input->post('redirect_url');
+        if (empty($redirect_url)) {
+            $redirect_url = 'admin/subscription_plans/manage_doctors';
+        }
+        redirect($redirect_url);
     }
 
     private function upload_file($file_name) {
-        if($_FILES[$file_name]['name']!='') {
-            if($_FILES[$file_name]["size"]<'5114374') {
+        if(!empty($_FILES[$file_name]['name'])) {
+            if($_FILES[$file_name]["size"] < 5114374) {
                 $upload_path1 = "./uploads/doctor_banners/";
                 if (!is_dir($upload_path1)) {
                     mkdir($upload_path1, 0777, TRUE);
                 }
                 $config1['upload_path'] = $upload_path1;
-                $config1['allowed_types'] = "*";
-                $config1['max_size'] = "204800000";
+                $config1['allowed_types'] = "gif|jpg|png|jpeg|webp|avif";
+                $config1['max_size'] = "204800"; // 200MB is too much, but let's keep it reasonable
                 $img_name1 = strtolower($_FILES[$file_name]['name']);
                 $img_name1 = preg_replace('/[^a-zA-Z0-9\.]/', "_", $img_name1);
                 $config1['file_name'] = date("YmdHis") . rand(0, 9999999) . "_" . $img_name1;
-                $this->load->library('upload', $config1);
+                
+                $this->load->library('upload');
                 $this->upload->initialize($config1);
+                
                 if($this->upload->do_upload($file_name)) {
                     $fileDetailArray1 = $this->upload->data();
                     return $fileDetailArray1['file_name'];
+                } else {
+                    $error = $this->upload->display_errors();
+                    $this->session->set_flashdata('error_message', 'Upload Error: ' . $error);
                 }
+            } else {
+                $this->session->set_flashdata('error_message', 'File size exceeds limit (5MB)');
             }
         }
         return '';
     }
 
-    function remove_doctor_from_manage($plan_id, $doctor_id) {
-        if ($this->subscription_plans_model->remove_doctor($plan_id, $doctor_id)) {
-            $this->session->set_flashdata('success_message', 'Doctor removed successfully');
+    function remove_all_doctors($plan_id) {
+        if ($this->subscription_plans_model->remove_doctor($plan_id)) {
+            $this->session->set_flashdata('success_message', 'All doctors removed from this plan');
         } else {
-            $this->session->set_flashdata('error_message', 'Unable to remove doctor');
+            $this->session->set_flashdata('error_message', 'Unable to remove doctors');
         }
+        redirect('admin/subscription_plans/manage_doctors/' . $plan_id);
+    }
+    function edit_plan_doctors($plan_id) {
+        if (!$plan_id) {
+            redirect('admin/subscription_plans/manage_doctors');
+        }
+
+        $this->data['page_name'] = 'plan_doctors';
+        $this->data['page_title'] = 'Manage Plan Doctors';
+        
+        $this->data['plan'] = $this->subscription_plans_model->get_plan_by_id($plan_id);
+        if (!$this->data['plan']) {
+            $this->session->set_flashdata('error_message', 'Plan not found');
+            redirect('admin/subscription_plans/manage_doctors');
+        }
+
+        // Get only doctors who have active subscription to THIS plan name OR are already assigned
+        $available = $this->subscription_plans_model->get_available_doctors($plan_id);
+        $assigned = $this->subscription_plans_model->get_assigned_doctors($plan_id);
+        
+        $this->data['assigned_doctor_ids'] = array_column($assigned, 'doctor_id');
+        
+        // Combine and standardize IDs (assigned docs use doctor_id, available docs use id)
+        foreach ($assigned as $a) {
+            $a->id = $a->doctor_id; // Map to 'id' for view consistency
+        }
+        
+        $this->data['all_doctors'] = array_merge($available, $assigned);
+        
+        // Sort by name for dropdown
+        usort($this->data['all_doctors'], function($a, $b) {
+            return strcmp($a->doctor_name, $b->doctor_name);
+        });
+
+        $this->data['current_image'] = !empty($assigned) ? $assigned[0]->app_image : '';
+
+        $this->admin_view('edit_plan_doctors');
+    }
+
+    function update_plan_doctors_bulk() {
+        $plan_id = $this->input->post('plan_id');
+        $doctor_ids = $this->input->post('doctor_ids'); // Array of selected doctors
+
+        if (!$plan_id) {
+            redirect('admin/subscription_plans/manage_doctors');
+        }
+
+        if (!$doctor_ids) {
+            $doctor_ids = array();
+        }
+
+        // Get current assignments
+        $current_assigned = $this->subscription_plans_model->get_assigned_doctors($plan_id);
+        $current_ids = array_column($current_assigned, 'doctor_id');
+        $current_image = !empty($current_assigned) ? $current_assigned[0]->app_image : '';
+
+        // Determine added and removed
+        $to_add = array_diff($doctor_ids, $current_ids);
+        $to_remove = array_diff($current_ids, $doctor_ids);
+
+        // Upload new image if provided
+        $new_image = $this->upload_file('appimage');
+        $final_image = !empty($new_image) ? $new_image : $current_image;
+
+        // 1. Remove doctors
+        foreach ($to_remove as $doc_id) {
+            $this->subscription_plans_model->remove_doctor($plan_id, $doc_id);
+        }
+
+        // 2. Add new doctors
+        $max_allowed = $this->subscription_plans_model->get_plan_max_doctors($plan_id);
+        $success_count = 0;
+        
+        foreach ($to_add as $doc_id) {
+            $current_count = $this->subscription_plans_model->get_assigned_doctors_count($plan_id);
+            if ($current_count >= $max_allowed) continue;
+
+            $data = array(
+                'plan_id' => $plan_id,
+                'doctor_id' => $doc_id,
+                'app_image' => $final_image,
+                'sort_order' => $current_count + 1
+            );
+            $this->subscription_plans_model->assign_doctor($data);
+            $success_count++;
+        }
+
+        // 3. Update existing doctors if image changed
+        if (!empty($new_image)) {
+            $common_ids = array_intersect($doctor_ids, $current_ids);
+            foreach ($common_ids as $doc_id) {
+                $this->subscription_plans_model->update_plan_doctor($plan_id, $doc_id, ['app_image' => $new_image]);
+            }
+        }
+
+        $this->session->set_flashdata('success_message', 'Doctors updated successfully for this plan');
         redirect('admin/subscription_plans/manage_doctors/' . $plan_id);
     }
 }

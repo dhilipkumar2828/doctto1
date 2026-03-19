@@ -57,6 +57,7 @@ $route['api/subscription-plans/customer/(:any)'] = 'api/Subscription_api/custome
 $route['api/subscription-plans/subscribe-to-doctor'] = 'api/Subscription_api/subscribe_to_doctor';
 $route['api/subscription-plans/my-subscription'] = 'api/Subscription_api/my_subscription';
 $route['api/subscription-plans/history'] = 'api/Subscription_api/subscription_history';
+$route['api/subscription-plans/terms'] = 'api/Subscription_api/subscription_terms';
 
 
 $route['web/store_wise_categories/(:num)'] = 'web/store_wise_categories';

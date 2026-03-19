@@ -50,40 +50,55 @@ $current_plan_id = isset($current_plan_id) ? $current_plan_id : NULL;
                             <thead>
                                 <tr>
                                     <th>#</th>
-                                    <th>Doctor / Title</th>
-                                    <th>Image</th>
                                     <th>Plan Name</th>
-                                    <th>Hospital Name</th>
-                                    <th>Mobile Number</th>
+                                    <th>Doctors</th>
+                                    <th>Banner Image</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php if ($assigned_doctors): ?>
-                                    <?php $i = 1; foreach ($assigned_doctors as $doctor): ?>
+                                <?php if ($assigned_doctors): 
+                                    $grouped_plans = [];
+                                    foreach ($assigned_doctors as $doctor) {
+                                        if (!isset($grouped_plans[$doctor->plan_id])) {
+                                            $grouped_plans[$doctor->plan_id] = [
+                                                'plan_name' => $doctor->plan_name,
+                                                'app_image' => $doctor->app_image,
+                                                'doctors' => []
+                                            ];
+                                        }
+                                        $grouped_plans[$doctor->plan_id]['doctors'][] = $doctor->doctor_name;
+                                    }
+                                    
+                                    $i = 1; 
+                                    foreach ($grouped_plans as $pid => $gp): 
+                                ?>
                                         <tr class="gradeX">
                                             <td><?= $i++ ?></td>
+                                            <td><strong><?= $gp['plan_name'] ?></strong></td>
                                             <td>
-                                                <strong><?= isset($doctor->doctor_name) ? $doctor->doctor_name : '' ?></strong>
-                                                <?php if(!empty($doctor->title)): ?>
-                                                    <br><small class="text-muted"><?= $doctor->title ?></small>
-                                                <?php endif; ?>
+                                                <div class="doctors-list">
+                                                    <?php foreach($gp['doctors'] as $dname): ?>
+                                                        <span class="label label-info m-r-xs"><?= $dname ?></span>
+                                                    <?php endforeach; ?>
+                                                </div>
                                             </td>
                                             <td>
-                                                <?php if(!empty($doctor->app_image)): ?>
-                                                    <img class="cat_image" src="<?= base_url() ?>uploads/doctor_banners/<?= $doctor->app_image ?>" alt="Banner">
+                                                <?php if(!empty($gp['app_image'])): ?>
+                                                    <img class="cat_image" src="<?= base_url() ?>uploads/doctor_banners/<?= $gp['app_image'] ?>" alt="Banner">
                                                 <?php else: ?>
                                                     <span class="text-muted small">No Image</span>
                                                 <?php endif; ?>
                                             </td>
-                                            <td><span class="label label-primary"><?= isset($doctor->plan_name) ? $doctor->plan_name : '' ?></span></td>
-                                            <td><?= isset($doctor->hospital_name) ? $doctor->hospital_name : '' ?></td>
-                                            <td><?= isset($doctor->mobile_number) ? $doctor->mobile_number : '' ?></td>
                                             <td>
-                                                <a href="<?= base_url() ?>admin/subscription_plans/remove_doctor_from_manage/<?= isset($doctor->plan_id) ? $doctor->plan_id : '' ?>/<?= isset($doctor->doctor_id) ? $doctor->doctor_id : '' ?>" 
+                                                <a href="<?= base_url() ?>admin/subscription_plans/edit_plan_doctors/<?= $pid ?>" 
+                                                   class="btn btn-xs btn-primary">
+                                                    <i class="fa fa-pencil"></i> Edit Doctors
+                                                </a>
+                                                <a href="<?= base_url() ?>admin/subscription_plans/remove_all_doctors/<?= $pid ?>" 
                                                    class="btn btn-xs btn-danger" 
-                                                   onclick="return confirm('Are you sure you want to remove this doctor from this plan?')">
-                                                    <i class="fa fa-trash"></i> Remove
+                                                   onclick="return confirm('Are you sure you want to remove ALL doctors from this plan?')">
+                                                    <i class="fa fa-trash"></i> Delete
                                                 </a>
                                             </td>
                                         </tr>

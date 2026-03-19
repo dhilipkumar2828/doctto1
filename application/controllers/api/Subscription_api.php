@@ -843,6 +843,24 @@ public function subscribe_to_doctor_post() {
             $this->response(['status' => 'error', 'message' => 'No doctors found for this plan'], REST_Controller::HTTP_OK);
         }
     }
+    /**
+     * Get Subscription Terms
+     * GET
+     */
+    public function subscription_terms_get() {
+        $terms = $this->subscription_api_model->get_subscription_terms();
+        if ($terms) {
+            $this->response([
+                'status' => 'success',
+                'data' => $terms
+            ], REST_Controller::HTTP_OK);
+        } else {
+            $this->response([
+                'status' => 'error',
+                'message' => 'No subscription terms found'
+            ], REST_Controller::HTTP_OK);
+        }
+    }
 }
 
 

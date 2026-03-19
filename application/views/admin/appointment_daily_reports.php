@@ -75,11 +75,11 @@
 
                 <div class="ibox-content">
 
-                    <form method="post" class="form-horizontal" enctype="multipart/form-data" action="<?php echo base_url(); ?>admin/appointment_daily_reports/datewiseReport">
-                        <label>To Date</label>
-                        <input type="date" name="start_date" value="<?php if($start_date!=''){ echo $start_date; }?>" required="">
+                    <form method="post" class="form-horizontal" action="<?php echo base_url(); ?>admin/appointment_daily_reports/datewiseReport">
                         <label>From Date</label>
-                        <input type="date" name="end_date" value="<?php if($end_date!=''){ echo $end_date; }?>" required="">
+                        <input type="date" name="start_date" value="<?php if(isset($start_date)){ echo $start_date; }?>" required="">
+                        <label>To Date</label>
+                        <input type="date" name="end_date" value="<?php if(isset($end_date)){ echo $end_date; }?>" required="">
                         <input type="submit" class="btn btn-primary" value="GET">
 
                         <a href="<?= base_url() ?>admin/appointment_daily_reports" class="btn btn-danger"><i class="fa fa-recycle"></i> Reset </a> 
@@ -102,6 +102,7 @@
                             foreach ($appointment_commission as $value) {
                             
                                 $vendor = $this->db->where(array('id'=>$value->doctor_id))->get('doctors')->row();
+                                if(!empty($vendor)){
                                 ?>
                                 <tr class="gradeX">
                                         
@@ -110,11 +111,11 @@
                                 <td><?php echo $vendor->hospital_name." ( <small> ".$vendor->doctor_name." </small> )"; ?></td>
                                 <td><?php echo $value->id; ?></td>                            
                                 <td><?php  echo $value->consultation_fee; ?></td>
-                                <td><?php echo date("d-m,Y",strtotime($value->date)); ?></td>
+                                <td><?php echo date("d-m-Y",strtotime($value->date)); ?></td>
                                 </tr>
                                 <?php
-
                                     $i++;
+                                }
                             }
 
                             ?>

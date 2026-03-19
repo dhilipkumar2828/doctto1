@@ -184,8 +184,11 @@ class Subscription_plans_model extends CI_Model {
         return $this->db->insert('subscription_plan_doctors', $data);
     }
 
-    function remove_doctor($plan_id, $doctor_id) {
-        $this->db->where(array('plan_id' => $plan_id, 'doctor_id' => $doctor_id));
+    function remove_doctor($plan_id, $doctor_id = NULL) {
+        $this->db->where('plan_id', $plan_id);
+        if ($doctor_id) {
+            $this->db->where('doctor_id', $doctor_id);
+        }
         return $this->db->delete('subscription_plan_doctors');
     }
 
@@ -214,5 +217,18 @@ class Subscription_plans_model extends CI_Model {
             }
         }
         return $result;
+    }
+    function get_plan_doctor($plan_id, $doctor_id) {
+        $this->db->select('spd.*, d.doctor_name, sp.name as plan_name');
+        $this->db->from('subscription_plan_doctors spd');
+        $this->db->join('doctors d', 'spd.doctor_id = d.id');
+        $this->db->join('subscription_plans sp', 'spd.plan_id = sp.id');
+        $this->db->where(['spd.plan_id' => $plan_id, 'spd.doctor_id' => $doctor_id]);
+        return $this->db->get()->row();
+    }
+
+    function update_plan_doctor($plan_id, $doctor_id, $data) {
+        $this->db->where(['plan_id' => $plan_id, 'doctor_id' => $doctor_id]);
+        return $this->db->update('subscription_plan_doctors', $data);
     }
 }

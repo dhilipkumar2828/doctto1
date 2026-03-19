@@ -136,7 +136,7 @@
                     <?php }
                     ?> -->
                 </div>
-                <?php include_once('crud_alerts.php') ?>
+                <!-- <?php include_once('crud_alerts.php') ?> -->
 <div class="wrapper wrapper-content animated fadeInRight">
   <div class="row">
     <div class="col-lg-12">

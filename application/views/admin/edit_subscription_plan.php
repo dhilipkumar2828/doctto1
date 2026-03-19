@@ -212,65 +212,107 @@
                                 <a href="<?= base_url() ?>admin/subscription_plans" class="btn btn-white">Cancel</a>
                             </div>
                         </div>
-                    </form>
-
-                    <!-- Doctor Assignment Section -->
+                    <                    <!-- Doctor Assignment Section -->
                     <hr>
-                    <h4>Doctor Assignment</h4>
-                    
-                    <!-- Assign New Doctor -->
-                    <?php if ($available_doctors): ?>
-                        <div class="form-group">
-                            <label class="col-sm-2 control-label">Assign Doctor</label>
-                            <div class="col-sm-8">
-                                <form method="post" action="<?= base_url() ?>admin/subscription_plans/assign_doctor" style="display: flex; gap: 10px;">
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <h3 class="m-t-none m-b">Doctor Assignment</h3>
+                            
+                            <!-- Form to Add More Doctors to this Plan -->
+                            <div class="ibox float-e-margins" style="border: 1px solid #e7eaec; padding: 15px; background: #fafafa;">
+                                <form method="post" action="<?= base_url() ?>admin/subscription_plans/assign_doctor_from_manage" enctype="multipart/form-data">
                                     <input type="hidden" name="plan_id" value="<?= $plan->id ?>">
-                                    <select name="doctor_id" class="form-control" required>
-                                        <option value="">Select Doctor</option>
-                                        <?php foreach ($available_doctors as $doctor): ?>
-                                            <option value="<?= $doctor->id ?>">
-                                                <?= $doctor->doctor_name ?> - <?= $doctor->hospital_name ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <button type="submit" class="btn btn-success">Assign</button>
-                                </form>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-
-                    <!-- Assigned Doctors List -->
-                    <div class="form-group">
-                        <label class="col-sm-2 control-label">Assigned Doctors</label>
-                        <div class="col-sm-10">
-                            <?php if ($assigned_doctors): ?>
-                                <?php foreach ($assigned_doctors as $doctor): ?>
-                                    <div class="doctor-card">
-                                        <div class="doctor-info">
-                                            <div>
-                                                <strong><?= $doctor->doctor_name ?></strong><br>
-                                                <small><?= $doctor->hospital_name ?> | <?= $doctor->mobile_number ?></small>
-                                            </div>
-                                            <div>
-                                                <a href="<?= base_url() ?>admin/subscription_plans/remove_doctor/<?= $plan->id ?>/<?= $doctor->doctor_id ?>" 
-                                                   class="btn btn-xs btn-danger" 
-                                                   onclick="return confirm('Are you sure you want to remove this doctor?')">
-                                                    <i class="fa fa-trash"></i> Remove
-                                                </a>
+                                    <input type="hidden" name="redirect_url" value="admin/subscription_plans/edit/<?= $plan->id ?>">
+                                    
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="form-group" style="margin-bottom: 10px !important;">
+                                                <label class="control-label">Select Doctors (Multi-select) *</label>
+                                                <select name="doctor_ids[]" class="form-control select2-multiple" multiple="multiple" required>
+                                                    <?php foreach ($available_doctors as $doctor): ?>
+                                                        <option value="<?= $doctor->id ?>">
+                                                            <?= $doctor->doctor_name ?> (<?= $doctor->hospital_name ?>)
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
                                             </div>
                                         </div>
+                                        <div class="col-md-3">
+                                            <div class="form-group" style="margin-bottom: 10px !important;">
+                                                <label class="control-label">Title/Subtitle</label>
+                                                <input type="text" name="title" class="form-control" placeholder="e.g. Specialists">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="form-group" style="margin-bottom: 10px !important;">
+                                                <label class="control-label">App Image *</label>
+                                                <input type="file" name="appimage" class="form-control" required>
+                                                <small class="text-danger">Rec: 900x400px</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2" style="padding-top: 25px;">
+                                            <button type="submit" class="btn btn-success btn-block"><i class="fa fa-plus"></i> Assign</button>
+                                        </div>
                                     </div>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <p class="text-muted">No doctors assigned to this plan.</p>
-                            <?php endif; ?>
+                                </form>
+                            </div>
+
+                            <!-- List of Currently Assigned Doctors -->
+                            <div class="table-responsive m-t-md">
+                                <table class="table table-bordered table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Doctor Name</th>
+                                            <th>Banner Image</th>
+                                            <th>Title</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php if ($assigned_doctors): ?>
+                                            <?php foreach ($assigned_doctors as $doctor): ?>
+                                                <tr>
+                                                    <td>
+                                                        <strong><?= $doctor->doctor_name ?></strong><br>
+                                                        <small class="text-muted"><?= $doctor->hospital_name ?></small>
+                                                    </td>
+                                                    <td>
+                                                        <?php if(!empty($doctor->app_image)): ?>
+                                                            <img src="<?= base_url() ?>uploads/doctor_banners/<?= $doctor->app_image ?>" style="height: 40px; border-radius: 4px;">
+                                                        <?php else: ?>
+                                                            <span class="text-muted">No Image</span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td><?= $doctor->title ?></td>
+                                                    <td>
+                                                        <a href="<?= base_url() ?>admin/subscription_plans/edit_plan_doctors/<?= $plan->id ?>" 
+                                                           class="btn btn-xs btn-primary">
+                                                            <i class="fa fa-pencil"></i> Edit
+                                                         </a>
+                                                        <a href="<?= base_url() ?>admin/subscription_plans/remove_doctor/<?= $plan->id ?>/<?= $doctor->doctor_id ?>" 
+                                                           class="btn btn-xs btn-danger" 
+                                                           onclick="return confirm('Are you sure you want to remove this doctor from this plan?')">
+                                                            <i class="fa fa-trash"></i> Remove
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        <?php else: ?>
+                                            <tr><td colspan="4" class="text-center">No doctors assigned yet.</td></tr>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
+                    </div>  </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
 function addFeature() {
@@ -296,6 +338,12 @@ function removeFeature(element) {
 
 // Form validation and Plan Name toggle
 $(document).ready(function() {
+    // Initialize Select2
+    $('.select2-multiple').select2({
+        placeholder: "Select Doctors",
+        width: '100%'
+    });
+
     $('#plan_name_dropdown').on('change', function() {
         if ($(this).val() === 'others') {
             $('#plan_name_dropdown_div').hide();
@@ -312,28 +360,33 @@ $(document).ready(function() {
         $('#plan_name_input').removeAttr('name').prop('required', false);
     });
 
-    $('form').on('submit', function(e) {
+    // Handle main form submit only
+    $('form:not([action*="assign_doctor_from_manage"])').on('submit', function(e) {
         let isValid = true;
         
         // Check if at least one feature is selected
         const consultationFees = $('select[name="consultation_fees[]"]');
         const limitCounts = $('input[name="limit_counts[]"]');
         
-        consultationFees.each(function(index) {
-            if (!$(this).val()) {
-                alert('Please select consultation type for all features.');
-                isValid = false;
-                return false;
-            }
-        });
+        if (consultationFees.length > 0) {
+            consultationFees.each(function(index) {
+                if (!$(this).val()) {
+                    alert('Please select consultation type for all features.');
+                    isValid = false;
+                    return false;
+                }
+            });
+        }
         
-        limitCounts.each(function(index) {
-            if (!$(this).val() || $(this).val() < 1) {
-                alert('Please enter valid limit count (minimum 1) for all features.');
-                isValid = false;
-                return false;
-            }
-        });
+        if (isValid && limitCounts.length > 0) {
+            limitCounts.each(function(index) {
+                if (!$(this).val() || $(this).val() < 1) {
+                    alert('Please enter valid limit count (minimum 1) for all features.');
+                    isValid = false;
+                    return false;
+                }
+            });
+        }
         
         if (!isValid) {
             e.preventDefault();

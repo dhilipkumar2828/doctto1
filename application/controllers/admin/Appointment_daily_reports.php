@@ -15,6 +15,8 @@ class Appointment_daily_reports extends MY_Controller {
     function index() {
         $this->data['page_name'] = 'vendors_shops';
         $this->data['title'] = 'Vendors/Shops';
+        $this->data['start_date'] = '';
+        $this->data['end_date'] = '';
                                                 $this->db->order_by("id","desc");
         $this->data['appointment_commission'] = $this->db->where('doctor_status','completed')->get('doctor_appointments')->result();
 
@@ -32,16 +34,16 @@ class Appointment_daily_reports extends MY_Controller {
         $end_date1 = $this->input->get_post('end_date');
         $end_date = date('Y-m-d', strtotime($end_date1. ' + 0 days'));
 
-        $data['start_date']=$start_date;
-        $data['end_date']=$end_date1;
-        $data['title'] = 'Date wise Orders';
+        $this->data['start_date']=$start_date;
+        $this->data['end_date']=$end_date1;
+        $this->data['title'] = 'Date wise Orders';
         
         $where = "doctor_status='completed' and date BETWEEN '".$start_date."' AND '".$end_date."'";
         $report = $this->db->where($where)->get('doctor_appointments')->result();
         //echo $this->db->last_query(); die;
-        $data['appointment_commission'] = $report;
+        $this->data['appointment_commission'] = $report;
         
-        $this->load->view('admin/includes/header', $data);
+        $this->load->view('admin/includes/header', $this->data);
         $this->load->view('admin/appointment_daily_reports', $this->data);
         $this->load->view('admin/includes/footer');
     }

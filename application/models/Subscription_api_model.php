@@ -421,4 +421,9 @@ class Subscription_api_model extends CI_Model
         }
         return $names;
     }
+    public function get_subscription_terms()
+    {
+        $this->db->where('status', 1);
+        return $this->db->get('subscription_terms')->result();
+    }
 }

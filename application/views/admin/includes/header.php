@@ -72,7 +72,7 @@
                         <li>
                             <a href="<?= base_url() ?>admin/dashboard"><i class="fa fa-th-large"></i> <span class="nav-label">Dashboard</span></a>
                         </li>
-                        <li class="<?php if($page_name == 'subscriptions' || $page_name == 'doctor_subscriptions' || $page_name == 'plan_doctors' || $page_name == 'manage_plan_doctors'){ echo 'active'; } ?>">
+                        <li class="<?php if($page_name == 'subscriptions' || $page_name == 'doctor_subscriptions' || $page_name == 'plan_doctors' || $page_name == 'manage_plan_doctors' || $page_name == 'subscription_terms'){ echo 'active'; } ?>">
                             <a href="#"><i class="fa fa-credit-card"></i> <span class="nav-label">Subscriptions</span><span class="fa arrow"></span></a>
                             <ul class="nav nav-second-level collapse">
                                 <li class="<?= $page_name == 'subscriptions' ? 'active' : '' ?>">
@@ -83,6 +83,9 @@
                                 </li>
                                 <li class="<?php if($page_name == 'plan_doctors' || $page_name == 'manage_plan_doctors'){ echo 'active'; } ?>">
                                     <a href="<?= base_url() ?>admin/subscription_plans/manage_doctors">Plan Doctors</a>
+                                </li>
+                                <li class="<?= $page_name == 'subscription_terms' ? 'active' : '' ?>">
+                                    <a href="<?= base_url() ?>admin/subscription_terms">Subscription Terms</a>
                                 </li>
                             </ul>
                         </li>
