@@ -591,11 +591,21 @@ class Phonepe_hermes extends REST_Controller
                 $sub = $this->subscription_api_model->buy_subscription($data);
 
                 if ($sub && $autopay_agreement_id && $log->type == 'doctor') {
+                    // Extract merchantSubscriptionId from request payload
+                    $payload_data = json_decode($log->request_payload, true);
+                    $merchant_subscription_id = $payload_data['paymentFlow']['subscriptionDetails']['merchantSubscriptionId'] ?? null;
+
+                    // Calculate next_billing_date to be 1 day before the expiry
+                    // If subscribed on 18th, next billing should be on 17th of next cycle
+                    $next_billing = date('Y-m-d', strtotime($sub->end_at . ' -1 day'));
+                    
                     $this->db->where('id', $sub->id);
                     $this->db->update('doctor_subscriptions', [
                         'autopay_agreement_id' => $autopay_agreement_id,
+                        'merchant_subscription_id' => $merchant_subscription_id,
                         'autopay_enabled' => 1,
                         'payment_gateway' => 'phonepe',
+                        'next_billing_date' => $next_billing,
                         'featured_status' => 0
                     ]);
                 }
@@ -734,5 +744,124 @@ class Phonepe_hermes extends REST_Controller
             return;
         }
         $this->verify_payment_get($mtid);
+    }
+
+    /**
+     * Process recurring payments for active auto-pay subscriptions
+     * This should be called by a cron job (e.g., daily)
+     */
+    public function process_recurring_payments_get()
+    {
+        log_message('info', 'PhonePe: Starting recurring payments processing');
+
+        // Find doctor subscriptions due for billing
+        $this->db->select('ds.*, sp.price as plan_price, sp.duration_days');
+        $this->db->from('doctor_subscriptions ds');
+        $this->db->join('subscription_plans sp', 'sp.id = ds.doctor_subscription_plan_id');
+        $this->db->where('ds.autopay_enabled', 1);
+        $this->db->where('ds.status', 'active');
+        $this->db->where('ds.payment_gateway', 'phonepe');
+        $this->db->where('ds.next_billing_date <=', date('Y-m-d'));
+        $this->db->where('ds.merchant_subscription_id !=', NULL);
+        
+        $subscriptions = $this->db->get()->result();
+
+        $results = [];
+        foreach ($subscriptions as $sub) {
+            $results[] = $this->process_single_renewal($sub);
+        }
+
+        $this->response([
+            'status' => 'success',
+            'processed_count' => count($subscriptions),
+            'results' => $results
+        ], REST_Controller::HTTP_OK);
+    }
+
+    private function process_single_renewal($sub)
+    {
+        $merchant_transaction_id = 'REN' . time() . rand(100, 999);
+        $amount_in_paise = intval($sub->plan_price * 100);
+
+        // 1. Log the renewal attempt
+        $log_data = [
+            'user_id' => $sub->doctor_id,
+            'plan_id' => $sub->doctor_subscription_plan_id,
+            'type' => 'doctor',
+            'merchant_transaction_id' => $merchant_transaction_id,
+            'amount' => $sub->plan_price,
+            'payment_status' => 'pending',
+            'provider' => 'phonepe_autopay_renewal',
+            'created_at' => date('Y-m-d H:i:s')
+        ];
+        $this->db->insert('payment_logs', $log_data);
+
+        // 2. Prepare Notify API (Redemption) payload
+        $notify_payload = [
+            "merchantOrderId" => $merchant_transaction_id,
+            "amount" => $amount_in_paise,
+            "paymentFlow" => [
+                "type" => "SUBSCRIPTION_CHECKOUT_REDEMPTION",
+                "merchantSubscriptionId" => $sub->merchant_subscription_id,
+                "redemptionRetryStrategy" => "STANDARD",
+                "autoDebit" => true
+            ]
+        ];
+
+        $headers = $this->get_phonepe_curl_headers();
+        $notify_url = (PHONEPE_MODE == 'PROD')
+            ? 'https://api.phonepe.com/apis/pg/checkout/v2/subscriptions/notify'
+            : 'https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/subscriptions/notify';
+
+        // 3. Call PhonePe Notify API
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $notify_url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($notify_payload),
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_TIMEOUT => 30
+        ]);
+
+        $response = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        $res_data = json_decode($response, true);
+
+        // 4. Handle Response
+        if ($http_code == 200 && isset($res_data['state']) && ($res_data['state'] == 'COMPLETED' || $res_data['state'] == 'SUCCESS')) {
+            // Success: Update subscription dates
+            $new_end_at = date('Y-m-d H:i:s', strtotime($sub->end_at . ' + ' . $sub->duration_days . ' days'));
+            
+            // Re-calculate next billing (1 day before new expiry)
+            $new_next_billing = date('Y-m-d', strtotime($new_end_at . ' -1 day'));
+
+            $this->db->where('id', $sub->id);
+            $this->db->update('doctor_subscriptions', [
+                'end_at' => $new_end_at,
+                'next_billing_date' => $new_next_billing,
+                'updated_at' => date('Y-m-d H:i:s')
+            ]);
+
+            $this->db->where('merchant_transaction_id', $merchant_transaction_id);
+            $this->db->update('payment_logs', [
+                'payment_status' => 'success',
+                'response_payload' => $response
+            ]);
+
+            return ['subscription_id' => $sub->id, 'status' => 'success', 'transaction_id' => $merchant_transaction_id];
+        } else {
+            // Failed
+            $this->db->where('merchant_transaction_id', $merchant_transaction_id);
+            $this->db->update('payment_logs', [
+                'payment_status' => 'failed',
+                'response_payload' => $response
+            ]);
+
+            log_message('error', "PhonePe: Recurring payment failed for sub {$sub->id}: " . $response);
+            return ['subscription_id' => $sub->id, 'status' => 'failed', 'error' => $response];
+        }
     }
 }

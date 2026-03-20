@@ -67,19 +67,18 @@ class Subscription_renewal_cron extends CI_Controller {
     }
 
     /**
-     * Get subscriptions expiring in the next 7 days
+     * Get subscriptions that are due for billing today
      */
     private function get_subscriptions_expiring_soon() {
-        $seven_days_from_now = date('Y-m-d H:i:s', strtotime('+7 days'));
+        $today = date('Y-m-d');
         
-        $this->db->select('ds.*, d.name as doctor_name, d.email as doctor_email, d.phone as doctor_phone, dsp.name as plan_name, dsp.price as plan_price');
+        $this->db->select('ds.*, d.doctor_name, d.email as doctor_email, d.mobile_number as doctor_phone, dsp.name as plan_name, dsp.price as plan_price, dsp.duration_days');
         $this->db->from('doctor_subscriptions ds');
         $this->db->join('doctors d', 'd.id = ds.doctor_id');
         $this->db->join('subscription_plans dsp', 'dsp.id = ds.doctor_subscription_plan_id');
         $this->db->where('ds.status', 'active');
         $this->db->where('ds.auto_renew', 1);
-        $this->db->where('ds.end_at <=', $seven_days_from_now);
-        $this->db->where('ds.end_at >', date('Y-m-d H:i:s'));
+        $this->db->where('ds.next_billing_date <=', $today);
         
         return $this->db->get()->result_array();
     }
@@ -176,13 +175,20 @@ class Subscription_renewal_cron extends CI_Controller {
 
             $access_token = $token_data->access_token;
             
-            // Recurring Debit API V2
-            $recurring_url = (PHONEPE_MODE == 'PROD') ? 'https://api.phonepe.com/apis/pg/checkout/v2/redeem' : 'https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/redeem';
+            // Recurring Debit API V2 (Notify Endpoint for Redemption)
+            $notify_url = (PHONEPE_MODE == 'PROD') 
+                ? 'https://api.phonepe.com/apis/pg/checkout/v2/subscriptions/notify' 
+                : 'https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/subscriptions/notify';
             
             $debit_payload = json_encode([
                 'merchantOrderId' => $merchant_order_id,
                 'amount' => $amount_in_paise,
-                'subscriptionId' => $agreement_id,
+                'paymentFlow' => [
+                    'type' => 'SUBSCRIPTION_CHECKOUT_REDEMPTION',
+                    'merchantSubscriptionId' => $subscription['merchant_subscription_id'] ?? $agreement_id,
+                    'redemptionRetryStrategy' => 'STANDARD',
+                    'autoDebit' => true
+                ],
                 'metaInfo' => [
                     'udf1' => (string)$subscription['doctor_id'],
                     'udf2' => 'RENEWAL',
@@ -190,13 +196,12 @@ class Subscription_renewal_cron extends CI_Controller {
                 ]
             ]);
 
-            $ch = curl_init($recurring_url);
+            $ch = curl_init($notify_url);
             curl_setopt($ch, CURLOPT_POST, 1);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $debit_payload);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'Authorization: O-Bearer ' . $access_token, // V2 uses O-Bearer
-                'X-MERCHANT-ID: ' . PHONEPE_MERCHANT_ID, // Required for V2 identity verification
+                'Authorization: O-Bearer ' . $access_token,
                 'Content-Type: application/json'
             ]);
             $response = curl_exec($ch);
@@ -232,9 +237,14 @@ class Subscription_renewal_cron extends CI_Controller {
     private function extend_subscription($subscription) {
         $days = (isset($subscription['duration_days']) && $subscription['duration_days'] > 0) ? $subscription['duration_days'] : 30;
         $new_end_at = date('Y-m-d H:i:s', strtotime($subscription['end_at'] . " + {$days} days"));
+
+        // Set next billing date to 1 day before the new expiry
+        $new_next_billing = date('Y-m-d', strtotime($new_end_at . ' -1 day'));
+
         $this->db->where('id', $subscription['id']);
         $this->db->update('doctor_subscriptions', [
             'end_at' => $new_end_at,
+            'next_billing_date' => $new_next_billing,
             'updated_at' => date('Y-m-d H:i:s')
         ]);
     }
