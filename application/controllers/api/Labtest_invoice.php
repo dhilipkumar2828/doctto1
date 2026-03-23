@@ -9,18 +9,34 @@ class Labtest_invoice extends MY_Controller {
 
     function view($appointment_id) {
         
-        
                              $this->db->select('doctor_id');
                              $this->db->where('id',$appointment_id);
-    $this->data['doctor_id'] = $this->db->get('doctor_appointments')->row();    
-    
-                             
-                             $this->db->where('id',$this->data['doctor_id']->doctor_id);
-    $this->data['doc_det'] = $this->db->get('doctors')->row();  
+               $doctor_row = $this->db->get('doctor_appointments')->row();
+        if (!$doctor_row) {
+            echo "Appointment not found.";
+            return;
+        }
+        $this->data['doctor_id'] = $doctor_row;
 
+        $this->db->where('id', $this->data['doctor_id']->doctor_id);
+        $doc_det = $this->db->get('doctors')->row();
+        if (!$doc_det) {
+            echo "Doctor not found.";
+            return;
+        }
+        $this->data['doc_det'] = $doc_det;
 
-                          $this->db->where('id',$this->data['doc_det']->designations);
-    $this->data['desg'] = $this->db->get('designations')->row()->name; 
+        $this->db->where('id', $this->data['doc_det']->designations);
+        $desg_row = $this->db->get('designations')->row();
+        $this->data['desg'] = $desg_row ? $desg_row->name : '';
+
+        // Fetch specialisation
+        $this->data['spcl'] = '';
+        if (!empty($this->data['doc_det']->specialisation)) {
+            $this->db->where('id', $this->data['doc_det']->specialisation);
+            $spcl_row = $this->db->get('specialisation')->row();
+            $this->data['spcl'] = $spcl_row ? $spcl_row->name : '';
+        }
 
     
     // print_r($this->data['doc_det']);die;
@@ -29,10 +45,16 @@ class Labtest_invoice extends MY_Controller {
     $this->data['patient'] = $this->db->get('doctor_appointments')->row();
     
 
-    
-                               $this->db->where('appointment_id',$appointment_id);
+                                   $this->db->where('appointment_id',$appointment_id);
                                $this->db->where('prescription_type','diagnosis');
-    $this->data['diag'] = $this->db->get('patient_prescription')->row();
+    $diag = $this->db->get('patient_prescription')->row();
+    $this->data['diag'] = $diag ? $diag : (object)[
+        'chief_complaints' => '',
+        'diagnosis' => '',
+        'investigation' => '',
+        'advice' => '',
+        'followup' => ''
+    ];
   
                                $this->db->where('appointment_id',$appointment_id);
                                $this->db->where('prescription_type','prescription');
@@ -40,16 +62,21 @@ class Labtest_invoice extends MY_Controller {
     
                             $this->db->select('id');
                             $this->db->where('appointment_id',$appointment_id);
-    $this->data['epresp'] = $this->db->get('patient_prescription')->row(); 
+    $epresp = $this->db->get('patient_prescription')->row(); 
+    $this->data['epresp'] = $epresp;
     
-  
-                          
-                                   $this->db->where('patient_prescription_id',$this->data['epresp']->id);
-    $this->data['labtest'] = $this->db->get('lab_tests')->result();
+    $this->data['labtest'] = array();
+    if ($epresp) {
+        $this->db->where('patient_prescription_id', $epresp->id);
+        $this->data['labtest'] = $this->db->get('lab_tests')->result();
+    }
 
         $base_path = str_replace("system", "vendor", BASEPATH);
 
         require_once $base_path . '/autoload.php';
+
+        error_reporting(0);
+        ini_set('display_errors', 0);
 
 
         $mpdf = new \Mpdf\Mpdf([
@@ -74,6 +101,8 @@ class Labtest_invoice extends MY_Controller {
         //$html = $this->load->view("pos_agreement/index", $this->data, true);
         $html = $this->load->view("labtest_invoice", $this->data, true);
         $mpdf->WriteHTML($html);
+        
+        if (ob_get_length()) ob_clean();
         $mpdf->Output();
     }
 

@@ -9,11 +9,9 @@ class Pdf_generation extends MY_Controller {
     function __construct() {
         parent::__construct();
         
-        echo "testing"; die;
     }
 
     function index() {
-      echo "testing"; die;
         $this->data['title'] = 'Dashboard';
       
         $this->data['page_name'] = 'dashboard';
