@@ -605,7 +605,7 @@ function notificationCount($user_id)
             $this->user->send_message($otp_message,$row->patient_mobile,$template_id);
 
 
-                    return array('status'=>TRUE,'message'=>'Appointment Success','first_name'=>$first_name,'doctor_name'=>$doctor_name,'patient_name'=>$row->patient_name,'date'=>$date,'time_slot_value'=>$row->time_slot_value);
+            return array('status'=>TRUE,'message'=>'Appointment Success','first_name'=>$first_name,'doctor_name'=>$doctor_name,'patient_name'=>$row->patient_name,'date'=>$date,'time_slot_value'=>$row->time_slot_value);
             }
         }
         else
