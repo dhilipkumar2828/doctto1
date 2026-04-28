@@ -6,8 +6,7 @@ class Home extends MY_Controller {
 
     function __construct() {
         parent::__construct();
-        // $this->load->model('web_model');
-        
+        $this->load->model('admin/Doctor_subscription_plans_model');
     }
 
     function index(){

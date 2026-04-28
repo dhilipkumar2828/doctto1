@@ -412,22 +412,7 @@ class User_api extends REST_Controller {
             
             $total_amount = $this->post('grand_total');
 
-              $explode = explode(".", $total_amount);
-              if($explode[1]!='')
-              {
-                  if(strlen($explode[1])==1)
-                  {
-                      $final = $explode[0]."".$explode[1]."0";
-                  }
-                  else
-                  {
-                      $final = $explode[0]."".$explode[1];
-                  }
-              }
-              else
-              {
-                  $final = $explode[0]."00";
-              }
+              $final = (int)round($total_amount * 100);
               
             $data = array(
                 'amount' => $final, 
@@ -1609,22 +1594,7 @@ class User_api extends REST_Controller {
             
             $total_amount = $this->post('grand_total');
 
-              $explode = explode(".", $total_amount);
-              if($explode[1]!='')
-              {
-                if(strlen($explode[1])==1)
-                {
-                  $final = $explode[0]."".$explode[1]."0";
-                }
-                else
-                {
-                  $final = $explode[0]."".$explode[1];
-                }
-              }
-              else
-              {
-                $final = $explode[0]."00";
-              }
+              $final = (int)round($total_amount * 100);
               
             $data = array(
                 'amount' => $final, 
@@ -1748,7 +1718,7 @@ class User_api extends REST_Controller {
             $user_id = $this->post('user_id');
             $total_amount = $this->post('wallet_amount');
             $data = array(
-                'amount' => $total_amount . '00', 
+                'amount' => (int)round($total_amount * 100), 
                 'currency' => 'INR'
             );
             $payload = json_encode($data);
@@ -1981,22 +1951,7 @@ class User_api extends REST_Controller {
             
             $total_amount = $this->post('grand_total');
 
-              $explode = explode(".", $total_amount);
-              if($explode[1]!='')
-              {
-                if(strlen($explode[1])==1)
-                {
-                  $final = $explode[0]."".$explode[1]."0";
-                }
-                else
-                {
-                  $final = $explode[0]."".$explode[1];
-                }
-              }
-              else
-              {
-                $final = $explode[0]."00";
-              }
+              $final = (int)round($total_amount * 100);
               
             $data = array(
                 'amount' => $final, 

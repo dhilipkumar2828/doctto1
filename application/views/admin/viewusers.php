@@ -144,12 +144,12 @@
                                     <td><?php
                                      $qry = $this->db->query("select * from users where id='".$v->patient_id."'");
                                      $users_row = $qry->row();
-                                     echo $users_row->first_name; ?>      
+                                     echo !empty($users_row) ? $users_row->first_name : ''; ?>      
                                     </td>
                                     <td><?php
                                      $qry = $this->db->query("select * from doctors where id='".$v->doctor_id."'");
                                      $doctors_row = $qry->row();
-                                     echo $doctors_row->doctor_name; ?>      
+                                     echo !empty($doctors_row) ? $doctors_row->doctor_name : ''; ?>      
                                     </td>
                                     <td><?= $v->patient_mobile; ?></td>
                                     <td><?= $v->appointment_type; ?></td>

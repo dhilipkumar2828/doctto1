@@ -360,6 +360,99 @@
                     </div>
                 </section>
                 <!--// Why Choose Us End //-->
+
+                <!--// Pricing Section Start //-->
+                <section class="section" id="pricing" data-scroll-index="6">
+                    <div class="container">
+                        <div class="row justify-content-center">
+                            <div class="col-lg-6">
+                                <div class="section-heading">
+                                    <h2>Subscription <span>Pricing Plan</span></h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <!-- Basic Plan -->
+                            <div class="col-lg-4 col-md-6 mb-4">
+                                <div class="pricing-card wow fadeInUp" data-wow-duration="0.5s" data-wow-delay="0.1s">
+                                    <div class="pricing-header">
+                                        <h5>Basic Plan</h5>
+                                        <div class="price">
+                                            <span class="currency">₹</span>
+                                            <span class="amount">999</span>
+                                            <span class="duration">/ 30 Days</span>
+                                        </div>
+                                    </div>
+                                    <div class="pricing-body">
+                                        <ul>
+                                            <li><i class="fas fa-check-circle"></i> Profile Listing</li>
+                                            <li><i class="fas fa-check-circle"></i> Online Consultation</li>
+                                            <li><i class="fas fa-check-circle"></i> Appointment Management</li>
+                                            <li><i class="fas fa-check-circle"></i> Patient History Access</li>
+                                            <li><i class="fas fa-check-circle"></i> 24/7 Digital Support</li>
+                                        </ul>
+                                    </div>
+                                    <div class="pricing-footer">
+                                        <a href="https://api.whatsapp.com/send?phone=+919490067418&text=I%20am%20interested%20in%20Basic%20Plan" class="primary-btn">Choose Plan</a>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Standard Plan -->
+                            <div class="col-lg-4 col-md-6 mb-4">
+                                <div class="pricing-card wow fadeInUp" data-wow-duration="0.5s" data-wow-delay="0.2s">
+                                    <div class="pricing-header">
+                                        <h5>Standard Plan</h5>
+                                        <div class="price">
+                                            <span class="currency">₹</span>
+                                            <span class="amount">2,499</span>
+                                            <span class="duration">/ 90 Days</span>
+                                        </div>
+                                    </div>
+                                    <div class="pricing-body">
+                                        <ul>
+                                            <li><i class="fas fa-check-circle"></i> All Basic Features</li>
+                                            <li><i class="fas fa-check-circle"></i> Priority Search Listing</li>
+                                            <li><i class="fas fa-check-circle"></i> Video Call Consultation</li>
+                                            <li><i class="fas fa-check-circle"></i> Digital Prescription Tool</li>
+                                            <li><i class="fas fa-check-circle"></i> Performance Analytics</li>
+                                        </ul>
+                                    </div>
+                                    <div class="pricing-footer">
+                                        <a href="https://api.whatsapp.com/send?phone=+919490067418&text=I%20am%20interested%20in%20Standard%20Plan" class="primary-btn">Choose Plan</a>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Premium Plan -->
+                            <div class="col-lg-4 col-md-6 mb-4">
+                                <div class="pricing-card wow fadeInUp" data-wow-duration="0.5s" data-wow-delay="0.3s">
+                                    <div class="pricing-header">
+                                        <h5>Premium Plan</h5>
+                                        <div class="price">
+                                            <span class="currency">₹</span>
+                                            <span class="amount">7,999</span>
+                                            <span class="duration">/ 365 Days</span>
+                                        </div>
+                                    </div>
+                                    <div class="pricing-body">
+                                        <ul>
+                                            <li><i class="fas fa-check-circle"></i> All Standard Features</li>
+                                            <li><i class="fas fa-check-circle"></i> Verified Profile Badge</li>
+                                            <li><i class="fas fa-check-circle"></i> Top Ranking in Specialist Search</li>
+                                            <li><i class="fas fa-check-circle"></i> Advanced Marketing Support</li>
+                                            <li><i class="fas fa-check-circle"></i> Dedicated Account Manager</li>
+                                        </ul>
+                                    </div>
+                                    <div class="pricing-footer">
+                                        <a href="https://api.whatsapp.com/send?phone=+919490067418&text=I%20am%20interested%20in%20Premium%20Plan" class="primary-btn">Choose Plan</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <!--// Pricing Section End //-->
                 <!--// Products Section Start //-->
                 <section class="section bg-light-grey pb-minus-76" data-scroll-index="4">
                     <div class="container">

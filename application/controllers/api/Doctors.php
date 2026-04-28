@@ -509,18 +509,7 @@ class Doctors extends REST_Controller
 
         $total_amount = $this->post('consultation_fee');
 
-        $explode = explode(".", $total_amount);
-        if ($explode[1] != '') {
-            if (strlen($explode[1]) == 1) {
-                $final = $explode[0] . "" . $explode[1] . "0";
-            }
-            else {
-                $final = $explode[0] . "" . $explode[1];
-            }
-        }
-        else {
-            $final = $explode[0] . "00";
-        }
+        $final = (int)round($total_amount * 100);
 
         $data = array(
             'amount' => $final,
@@ -548,13 +537,14 @@ class Doctors extends REST_Controller
         $time_slot_value = $this->input->post('time_slot_value');
         $patient_name = $this->input->post('patient_name');
         $patient_mobile = $this->input->post('patient_mobile');
+        $patient_email = $this->input->post('patient_email');
         $patient_age = $this->input->post('patient_age');
         $patient_gender = $this->input->post('patient_gender');
         $patient_visiting_purpose = $this->input->post('patient_visiting_purpose');
         $type = $this->input->post('appointment_type');
         // $consultation_fee = $this->input->post('consultation_fee');
 
-        $sql = $this->Doctors_model->razerpayOrderidAppointment($patient_id, $doctor_id, $date, $time_slot_name, $time_slot_value, $patient_name, $patient_mobile, $patient_age, $patient_gender, $patient_visiting_purpose, $total_amount, $order_id, $razorpay_keyid, $type);
+        $sql = $this->Doctors_model->razerpayOrderidAppointment($patient_id, $doctor_id, $date, $time_slot_name, $time_slot_value, $patient_name, $patient_mobile, $patient_email, $patient_age, $patient_gender, $patient_visiting_purpose, $total_amount, $order_id, $razorpay_keyid, $type);
 
         if ($sql) {
             $this->response($sql, REST_Controller::HTTP_OK);

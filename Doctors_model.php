@@ -602,7 +602,7 @@ function notificationCount($user_id)
             $otp_message = "Dear ".$row->patient_name." your booking no.".$appointment_id." is successfully placed, awaiting for doctor confirmation. Thanks & Regards...! DOCTTO";
             $template_id = '1407168691886113081';
 
-            $this->user->send_message($otp_message,$row->patient_mobile,$template_id);
+            $this->User->send_message($otp_message,$row->patient_mobile,$template_id);
 
 
             return array('status'=>TRUE,'message'=>'Appointment Success','first_name'=>$first_name,'doctor_name'=>$doctor_name,'patient_name'=>$row->patient_name,'date'=>$date,'time_slot_value'=>$row->time_slot_value);
@@ -1132,7 +1132,7 @@ function notificationCount($user_id)
             $otp_message = "Dear ".$patient_name." your booking no.".$appointment_id." is successfully placed, awaiting for doctor confirmation. Thanks & Regards...! DOCTTO";
             $template_id = '1407168691886113081';
 
-            $this->send_message($otp_message,$phone,$template_id);
+            $this->User->send_message($otp_message,$phone,$template_id);
 
             $date=date("d M,Y",strtotime($date));
             return array('status'=>TRUE,'message'=>'Appointment Success','first_name'=>$first_name,'doctor_name'=>$doctor_name,'patient_name'=>$patient_name,'date'=>$date,'time_slot_value'=>$time_slot_value); 
@@ -1361,12 +1361,12 @@ function updateNotifications($user_id)
 
                         $doctor_row = $this->db->where("id",$patient_row->doctor_id)->get("doctors")->row();
 
-                        /* $otp_message = "Dear ".$doctor_row->doctor_name." your booking no.".$appointment_id." is cancelled by patient Thank and regards DOCTTO Thanks & Regards...! DOCTTO";
+                        $otp_message = "Dear ".$doctor_row->doctor_name." your booking no.".$appointment_id." is cancelled by patient Thank and regards DOCTTO Thanks & Regards...! DOCTTO";
                         $template_id = '1407168691897786773';
-                        $this->user->send_message($otp_message,$doctor_row->mobile_number,$template_id);*/
+                        $this->User->send_message($otp_message,$doctor_row->mobile_number,$template_id);
 
-                         /*$arr = array('status'=>TRUE,'message'=>"Appointment cancelled successfully");
-                        return $arr;   */ 
+                         $arr = array('status'=>TRUE,'message'=>"Appointment cancelled successfully");
+                        return $arr; 
                     }
 
                 }

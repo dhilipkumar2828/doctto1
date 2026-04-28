@@ -84,7 +84,7 @@ class User extends CI_Model {
     
     
 
-    function send_message($message = "", $mobile_number,$template_id=NULL) {
+    function send_message($message, $mobile_number, $template_id = NULL) {
 
          $message = urlencode($message);
 
@@ -99,7 +99,8 @@ class User extends CI_Model {
          curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);
          curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
          curl_exec($ch);
-         return true;
+
+        return true;
 
          return true;
       }

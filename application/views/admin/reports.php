@@ -126,7 +126,7 @@
                                     <td><?php
                                      $qry = $this->db->query("select * from doctors where id='".$v->doctor_id."'");
                                      $doctors_row = $qry->row();
-                                     echo $doctors_row->doctor_name; ?>      
+                                     echo !empty($doctors_row) ? $doctors_row->doctor_name : ''; ?>      
                                     </td>
                                     <td><?= $v->patient_name; ?></td>
                                     <td><?= $v->patient_age; ?></td>  

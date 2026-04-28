@@ -102,7 +102,7 @@
                                     <h6 style="font-size: 16px; color: #000; margin: 0px; margin-bottom: 0px; font-weight: 500;">Place of Supply: <?=$tax_details->customer_place?></h6>
                                 </td>
                                  <td width="350" valign="top">
-                                    <h6 class="lead marginbottom" style="font-size: 18px; color: #000; margin: 0px; margin-bottom: 6px; font-weight: 600;">Invoice Date: <span style="font-weight: 700;"><?=date('d-M-Y')?></span></h6>
+                                    <h6 class="lead marginbottom" style="font-size: 18px; color: #000; margin: 0px; margin-bottom: 6px; font-weight: 600;">Invoice Date: <span style="font-weight: 700;"><?=date('d-M-Y', strtotime($patient->date))?></span></h6>
                                     <h6 style="font-size: 16px; color: #000; margin: 0px; font-weight: 500; margin-bottom: 6px;">Billing Address: </h6>
                                     <h6 style="font-size: 16px; color: #000; margin: 0px; font-weight: 500; margin-bottom: 4px; width: 250px;"><?=$tax_details->customer_address?></h6>  
                                 </td>

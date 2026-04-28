@@ -121,7 +121,7 @@
                             <button class="btn btn-primary">+ Lab tests </button>  
                             
                         </a>
-                         <input type="hidden" name="id" value="<?= $appointment_id->id ?>"> 
+                         <input type="hidden" name="id" value="<?= $appointment_id ?>"> 
                     </div>
 
                    <!--  <?php if (!empty($this->session->flashdata('success_message'))) { ?>
@@ -142,7 +142,7 @@
     <div class="col-lg-12">
       <div class="ibox float-e-margins">
         <div class="ibox-title">
-           <?php if(!empty($patient_prescription_id->prescription_type)){ ?>
+           <?php if(!empty($patient_prescription_id) && !empty($patient_prescription_id->prescription_type)){ ?>
           <h5>Prescription Type :
             <?php echo $patient_prescription_id->prescription_type; ?>
           </h5>
@@ -180,7 +180,7 @@
         <?php }
         ?> -->
         
-     <?php   if($patient_prescription_id->prescription_type == 'prescription'){?>
+     <?php   if(!empty($patient_prescription_id) && $patient_prescription_id->prescription_type == 'prescription'){?>
         
         <div class="col-sm-12">
 
@@ -273,9 +273,11 @@
                                     <tr class="gradeX">
                                         <td><?php echo 1; ?></td>
                                           <td>
+                                            <?php if(!empty($manual_prescription)){ ?>
                                             <img class="cat_image" align="left" src="<?php echo base_url(); ?>uploads/prescription/<?php echo $manual_prescription->manual_prescription; ?>" >
+                                            <?php } ?>
                                         </td>
-                                        <?php if($manual_prescription->manual_prescription){?>
+                                        <?php if(!empty($manual_prescription) && $manual_prescription->manual_prescription){?>
                                         <td><?php echo date('d M Y',$manual_prescription->created_at); ?></td>
                                         <?php } ?>
                                         <!--<td>-->
@@ -348,7 +350,7 @@
           </div>
 
         </div>
-     <?php } else if($patient_prescription_id->prescription_type == 'diagnosis'){?>
+     <?php } else if(!empty($patient_prescription_id) && $patient_prescription_id->prescription_type == 'diagnosis'){?>
          <div class="col-sm-12">
 
           <ul class="nav nav-tabs responsive-tabs">
@@ -382,8 +384,8 @@
                                 $i = 1; ?>
                                     <tr class="gradeX">
                                         <td><?php echo $i; ?></td>
-                                        <td><?php echo $diagnosis->chief_complaints; ?></td>
-                                        <?php if($diagnosis->chief_complaints){?>
+                                        <td><?php echo !empty($diagnosis) ? $diagnosis->chief_complaints : ''; ?></td>
+                                        <?php if(!empty($diagnosis) && $diagnosis->chief_complaints){?>
                                         <td><?php echo date('d M Y',$diagnosis->created_at); ?></td>
                                         <?php } ?>
                                         <!--<td> -->
@@ -426,8 +428,8 @@
                                 $i = 1; ?>
                                     <tr class="gradeX">
                                         <td><?php echo $i; ?></td>
-                                        <td><?php echo $diagnosis->diagnosis; ?></td>
-                                        <?php if($diagnosis->diagnosis){?>
+                                        <td><?php echo !empty($diagnosis) ? $diagnosis->diagnosis : ''; ?></td>
+                                        <?php if(!empty($diagnosis) && $diagnosis->diagnosis){?>
                                         <td><?php echo date('d M Y',$diagnosis->created_at); ?></td>
                                         <?php } ?>
                                         <!--<td> -->
@@ -470,8 +472,8 @@
                                 $i = 1; ?>
                                     <tr class="gradeX">
                                         <td><?php echo $i; ?></td>
-                                        <td><?php echo $diagnosis->advice; ?></td>
-                                        <?php if($diagnosis->advice){?>
+                                        <td><?php echo !empty($diagnosis) ? $diagnosis->advice : ''; ?></td>
+                                        <?php if(!empty($diagnosis) && $diagnosis->advice){?>
                                         <td><?php echo date('d M Y',$diagnosis->created_at); ?></td>
                                         <?php } ?>
                                         <!--<td> -->
@@ -513,8 +515,8 @@
                                 $i = 1; ?>
                                     <tr class="gradeX">
                                         <td><?php echo $i; ?></td>
-                                        <td><?php echo $diagnosis->investigation; ?></td>
-                                        <?php if($diagnosis->investigation){?>
+                                        <td><?php echo !empty($diagnosis) ? $diagnosis->investigation : ''; ?></td>
+                                        <?php if(!empty($diagnosis) && $diagnosis->investigation){?>
                                         <td><?php echo date('d M Y',$diagnosis->created_at); ?></td>
                                         <?php } ?>
                                         <!--<td> -->
@@ -556,8 +558,8 @@
                                 $i = 1; ?>
                                     <tr class="gradeX">
                                         <td><?php echo $i; ?></td>
-                                        <td><?php echo $diagnosis->followup; ?></td>
-                                        <?php if($diagnosis->followup){?>
+                                        <td><?php echo !empty($diagnosis) ? $diagnosis->followup : ''; ?></td>
+                                        <?php if(!empty($diagnosis) && $diagnosis->followup){?>
                                         <td><?php echo date('d M Y',$diagnosis->created_at); ?></td>
                                         <?php } ?>
                                         <!--<td> -->

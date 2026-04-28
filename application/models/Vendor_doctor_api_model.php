@@ -10,6 +10,7 @@ class Vendor_doctor_api_model extends CI_Model
         parent::__construct();
         //load database library
         $this->load->database();
+        $this->load->model('user');
     }
 
 
@@ -1372,12 +1373,12 @@ class Vendor_doctor_api_model extends CI_Model
 
                     $doctor_row = $this->db->where("id", $patient_row->doctor_id)->get("doctors")->row();
 
-                /* $otp_message = "Dear ".$doctor_row->doctor_name." your booking no.".$appointment_id." is cancelled by patient Thank and regards DOCTTO Thanks & Regards...! DOCTTO";
+                $otp_message = "Dear ".$doctor_row->doctor_name." your booking no.".$appointment_id." is cancelled by patient Thank and regards DOCTTO Thanks & Regards...! DOCTTO";
                  $template_id = '1407168691897786773';
-                 $this->user->send_message($otp_message,$doctor_row->mobile_number,$template_id);*/
+                 $this->User->send_message($otp_message,$doctor_row->mobile_number,$template_id);
 
-                /*$arr = array('status'=>TRUE,'message'=>"Appointment cancelled successfully");
-                 return $arr;   */
+                $arr = array('status'=>TRUE,'message'=>"Appointment cancelled successfully");
+                 return $arr;   
                 }
 
             }
@@ -2404,11 +2405,12 @@ class Vendor_doctor_api_model extends CI_Model
         //echo $this->db->last_query(); die;
         if ($res) {
             $appoint_row = $valid;
+          
             $message = "Dear " . $appoint_row->patient_name . " your booking no." . $appointment_id . " is accepted successfully, Please login into your dashboard. Thanks & Regards...! DOCTTO";
             $title = "Appointment Accepted";
             $this->doNotifications($appointment_id, $doctor_id, $appoint_row->patient_id, $message, $title);
 
-            $otp_message = "Dear " . $appoint_row->patient_name . " your booking no." . $appointment_id . " is accepted successfully, Please login into your dashboard. Thanks & Regards...! DOCTTO";
+            $otp_message = "Dear " . $appoint_row->patient_name . " your booking no." . $appointment_id . " is acepted successfully, Please login into your dashboard. Thanks & Regards...! DOCTTO";
             $template_id = '1407168691889847853';
             $this->User->send_message($otp_message, $appoint_row->patient_mobile, $template_id);
 
@@ -2427,9 +2429,7 @@ class Vendor_doctor_api_model extends CI_Model
 
 
         $row = $this->db->where('id', $doctor_id)->get('doctors')->row();
-        if ($morning_start_time != '') {
-            // print_r('daf');die;
-
+        if ($morning_start_time != '' && is_numeric($morning_start_time)) {
             $morning_start_time1 = $morning_start_time / 1000;
             $morning_start_time = date("H:i:s", $morning_start_time1);
         }
@@ -2438,52 +2438,40 @@ class Vendor_doctor_api_model extends CI_Model
             $morning_start_time = $row->morning_start_time;
 
         }
-        if ($morning_end_time != '') {
-
+        if ($morning_end_time != '' && is_numeric($morning_end_time)) {
             $morning_end_time1 = $morning_end_time / 1000;
             $morning_end_time = date("H:i:s", $morning_end_time1);
         }
         else {
-
-            $morning_end_time = $row->$morning_end_time;
-
+            $morning_end_time = $row->morning_end_time;
         }
-        if ($afternoon_start_time != '') {
-
+        if ($afternoon_start_time != '' && is_numeric($afternoon_start_time)) {
             $afternoon_start_time1 = $afternoon_start_time / 1000;
             $afternoon_start_time = date("H:i:s", $afternoon_start_time1);
         }
         else {
-
             $afternoon_start_time = $row->afternoon_start_time;
-
         }
-        if ($afternoon_end_time != '') {
-            // print_r('daf');die;
+        if ($afternoon_end_time != '' && is_numeric($afternoon_end_time)) {
             $afternoon_end_time1 = $afternoon_end_time / 1000;
             $afternoon_end_time = date("H:i:s", $afternoon_end_time1);
         }
         else {
             $afternoon_end_time = $row->afternoon_end_time;
-
         }
-        if ($evening_start_time != '') {
-            // print_r('daf');die;
+        if ($evening_start_time != '' && is_numeric($evening_start_time)) {
             $evening_start_time1 = $evening_start_time / 1000;
             $evening_start_time = date("H:i:s", $evening_start_time1);
         }
         else {
-            $evening_start_time = $row->$evening_start_time;
-
+            $evening_start_time = $row->evening_start_time;
         }
-        if ($evening_end_time != '') {
-            // print_r('daf');die;
+        if ($evening_end_time != '' && is_numeric($evening_end_time)) {
             $evening_end_time1 = $evening_end_time / 1000;
             $evening_end_time = date("H:i:s", $evening_end_time1);
         }
         else {
-            $evening_end_time = $row->$evening_start_time;
-
+            $evening_end_time = $row->evening_end_time;
         }
         if ($chat_price != '') {
             $chat_price = $chat_price;
@@ -2508,14 +2496,28 @@ class Vendor_doctor_api_model extends CI_Model
             $reslt = $this->db->count_all_results('doctor_bank_details');
             // echo $this->db->last_query();die;
             if ($reslt > 0) {
-                $upd_data = array('bank_name' => $bank_name, 'account_holder_name' => $account_holder_name, 'account_number' => $account_number, 'retype_account_number' => $retype_account_number, 'ifsc_code' => $ifsc_code);
+                $upd_data = array(
+                    'bank_name' => !empty($bank_name) ? $bank_name : '',
+                    'account_holder_name' => !empty($account_holder_name) ? $account_holder_name : '',
+                    'account_number' => !empty($account_number) ? $account_number : '',
+                    'retype_account_number' => !empty($retype_account_number) ? $retype_account_number : '',
+                    'ifsc_code' => !empty($ifsc_code) ? $ifsc_code : ''
+                );
                 $wr = array('doctor_id' => $doctor_id);
                 $this->db->update("doctor_bank_details", $upd_data, $wr);
             }
             else {
-                // print_r('da');die;
-                $ins_data = array('doctor_id' => $doctor_id, 'bank_name' => $bank_name, 'account_holder_name' => $account_holder_name, 'account_number' => $account_number, 'retype_account_number' => $retype_account_number, 'ifsc_code' => $ifsc_code);
-                $this->db->insert("doctor_bank_details", $ins_data);
+                if (!empty($bank_name) || !empty($account_holder_name) || !empty($account_number)) {
+                    $ins_data = array(
+                        'doctor_id' => $doctor_id,
+                        'bank_name' => !empty($bank_name) ? $bank_name : '',
+                        'account_holder_name' => !empty($account_holder_name) ? $account_holder_name : '',
+                        'account_number' => !empty($account_number) ? $account_number : '',
+                        'retype_account_number' => !empty($retype_account_number) ? $retype_account_number : '',
+                        'ifsc_code' => !empty($ifsc_code) ? $ifsc_code : ''
+                    );
+                    $this->db->insert("doctor_bank_details", $ins_data);
+                }
             }
             $arr = array('status' => TRUE, 'message' => "Updated successfully");
             return $arr;
@@ -2728,7 +2730,8 @@ class Vendor_doctor_api_model extends CI_Model
 
             $this->db->select('name');
             $this->db->where('id', $query->specialisation);
-            $specialisation_name = $this->db->get('specialisation')->row()->name;
+            $specialisation_row = $this->db->get('specialisation')->row();
+            $specialisation_name = !empty($specialisation_row) ? $specialisation_row->name : '';
             $specialist_data = $this->db->query("select * from specialist_in where find_in_set(id,'" . $query->specialist_in . "')")->result();
 
             $specialist_name = [];
@@ -2969,7 +2972,6 @@ class Vendor_doctor_api_model extends CI_Model
             $array = [];
             $total_consultation_fee = 0;
             foreach ($data as $value) {
-                $created_date = date("d M h:i A", strtotime($value->created_date));
                 $doctor_id = $value->doctor_id;
                 $date_disp = date("d M,Y", strtotime($value->date));
                 $consultation_fee = $value->consultation_fee;

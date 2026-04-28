@@ -54,6 +54,9 @@
                                         <a class="nav-link menu-link" onclick="closeNav()"href="#" data-scroll-nav="5">Why Choose us</a>
                                     </li>
                                     <li class="nav-item">
+                                        <a class="nav-link menu-link" onclick="closeNav()" href="#" data-scroll-nav="6">Pricing</a>
+                                    </li>
+                                    <li class="nav-item">
                                         <a class="nav-link menu-link"onclick="closeNav()" href="#" data-scroll-nav="4">App Screens</a>
                                     </li>
                                     <li class="nav-item">
@@ -76,6 +79,9 @@
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link menu-link" href="#" data-scroll-nav="5">Why Choose us</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link menu-link" href="#" data-scroll-nav="6">Pricing</a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link menu-link" href="#" data-scroll-nav="4">App Screens</a>

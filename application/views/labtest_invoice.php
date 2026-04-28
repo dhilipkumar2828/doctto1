@@ -46,7 +46,7 @@
                         <table>
                             <tr>
                                 <td width="650" valign="center" align="left">
-                                    <img src="https://doctto.com/admin_assets/assets/images/logo123.png" alt="" style="height: 60px;" style="width: 150px;">
+                                    <img src="https://doctto.com/admin_assets/assets/images/logo123.png" alt="" style="height: 60px; width: 150px;">
                                 </td>
                                 
                                 <td width="500" valign="right">
@@ -96,7 +96,7 @@
                                 <td width="20">&nbsp;</td>
                                  <td width="490" align="right">
                                     <div style="font-size: 15px; margin-bottom: 5px; text-align: right;">
-                                        <p style="margin:0px; padding: 0px 0px 5px 0px;"><strong style="font-size: 20px;">Date : <span><?=date('d-m-Y h:i A')?></span><strong></p>
+                                        <p style="margin:0px; padding: 0px 0px 5px 0px;"><strong style="font-size: 20px;">Date : <span><?=date('d-m-Y h:i A')?></span></strong></p>
                                       
                                     </div>
                                 </td> 
@@ -110,7 +110,7 @@
                         <hr style="margin: 0px" />
                     </td>
                 </tr>
-                <br>
+
                 
                  <tr>
                     <td> <p style="margin:0px; padding:0px 0px 5px 0px; font-size: 16px; color: #000; text-decoration: underline;"><strong>Lab Tests</strong></p></td>
@@ -148,7 +148,7 @@
                 </tr>
 
               
-                <br><br><br>
+
                          <tr> 
                        <td colspan="4"  style="text-align: right;">   <?php if($doc_det->digital_signature!=''){ ?>
                            <img src="<?php echo base_url(); ?>uploads/doctors/<?= $doc_det->digital_signature; ?>" style="width: 100px;">     

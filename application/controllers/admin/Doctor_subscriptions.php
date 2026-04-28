@@ -197,4 +197,10 @@ class Doctor_subscriptions extends MY_Controller {
         }
         redirect('admin/doctor_subscriptions?type=doctor');
     }
+    function history() {
+        $this->data['page_name'] = 'subscription_history';
+        $this->data['page_title'] = 'Subscription History';
+        $this->data['history'] = $this->doctor_subscriptions_model->get_all_history();
+        $this->admin_view('subscription_history');
+    }
 }

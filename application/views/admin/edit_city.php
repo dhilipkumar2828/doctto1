@@ -14,7 +14,7 @@
 
                                 
                                  <input type="hidden" name="cid"  value="<?php echo $city_row->id;?>">
-                                 <input type="hidden" name="shop_id" id="shop_id" value="<?php echo $shop_id; ?>">
+
                                 <div class="form-group">
                                     <label class="col-sm-2 control-label">Select State</label>
                                     <div class="col-sm-10">

@@ -13,3 +13,12 @@ and open the template in the editor.
     border-color:#8BC34A;
     color:#fff;
 }
+
+/* Hide redundant bootstrap alerts (favoring the new Toastr system) */
+.ibox-title .alert-success, 
+.ibox-title .alert-danger, 
+.ibox-title .alert-dismissable,
+.wrapper-content .alert-success,
+.wrapper-content .alert-danger {
+    display: none !important;
+}

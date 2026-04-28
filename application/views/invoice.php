@@ -45,14 +45,14 @@
                         <table>
                             <tr>
                                 <td width="650" valign="center" align="left">
-                                    <img src="https://doctto.com/admin_assets/assets/images/logo123.png" alt="" style="height: 60px;" style="width: 150px;">
+                                    <img src="https://doctto.com/admin_assets/assets/images/logo123.png" alt="" style="height: 60px; width: 150px;">
                                 </td>
                                 
                                 <td width="500" valign="right">
                                     <table cellspacing="0" cellpadding="10" align="right">
                                        
                                         <tr>
-                                            <td style="font-size: 20px;"><?=$doc_det->doctor_name?></td> 
+                                            <td style="font-size: 20px;"><?= !empty($doc_det) ? $doc_det->doctor_name : '' ?></td> 
                                         </tr>
                                          <tr>
                                              
@@ -64,10 +64,10 @@
                                            
                                         </tr>
                                         <tr>
-                                             <td style="font-size: 20px;"><?=$doc_det->hospital_name?></td>
+                                             <td style="font-size: 20px;"><?= !empty($doc_det) ? $doc_det->hospital_name : '' ?></td>
                                         </tr>
                                         <tr>
-                                              <td style="font-size: 20px;"><?=$doc_det->address?></td>
+                                              <td style="font-size: 20px;"><?= !empty($doc_det) ? $doc_det->address : '' ?></td>
                                         </tr>
                                     </table>
                                 </td>
@@ -88,14 +88,14 @@
                             <tr>
                                 <td width="490" valign="top">
                                     <div style="font-size: 15px; margin-bottom: 5px; text-align: left;">
-                                        <p style="font-size: 20px;"><strong>Patient Name :</strong> <span><?= $patient->patient_name ?></span></p>
-                                        <p style="font-size: 20px;"><strong>Age/Gender : </strong><span><?= $patient->patient_age ?>/<?= $patient->patient_gender ?></span></p>
+                                        <p style="font-size: 20px;"><strong>Patient Name :</strong> <span><?= !empty($patient) ? $patient->patient_name : '' ?></span></p>
+                                        <p style="font-size: 20px;"><strong>Age/Gender : </strong><span><?= !empty($patient) ? $patient->patient_age : '' ?>/<?= !empty($patient) ? $patient->patient_gender : '' ?></span></p>
                                     </div>
                                 </td>
                                 <td width="20">&nbsp;</td>
                                  <td width="490" align="right">
                                     <div style="font-size: 15px; margin-bottom: 5px; text-align: right;">
-                                        <p style="margin:0px; padding: 0px 0px 5px 0px;"><strong style="font-size: 20px;">Date : <span><?=date('d-m-Y h:i A')?></span><strong></p>
+                                        <p style="margin:0px; padding: 0px 0px 5px 0px;"><strong style="font-size: 20px;">Date : <span><?=date('d-m-Y h:i A')?></span></strong></p>
                                       
                                     </div>
                                 </td> 
@@ -109,11 +109,10 @@
                         <hr style="margin: 0px" />
                     </td>
                 </tr>
-                <br>
+
                 <tr>
                     <td valign="top">
                         <table> 
-                         <br>   
                            <tr>
                                 <td width="1000" valign="top">
                                     <div style="font-size: 15px; margin-bottom: 5px; text-align:left">
@@ -121,19 +120,13 @@
                                         <p style="margin:0px; padding: 0px 0px 5px 0px; font-size: 16px; color: #000;  text-decoration: underline;"><strong>Chief Complaints</strong></p> 
                                         
                                         <ul style="padding-left : 18px; margin-top: 5px;">
-                                            <li style="padding: 2px 0px"><?= $diag->chief_complaints ?></li>
-                                            <!--<li style="padding: 2px 0px">Prediabetes (diagnosed)</li>-->
-                                            <!--<li style="padding: 2px 0px">Iron deficiency (diagnosed)</li>-->
-                                            <!--<li style="padding: 2px 0px">Hyperlipidemia (diagnosed)</li>-->
+                                            <li style="padding: 2px 0px"><?= !empty($diag) ? $diag->chief_complaints : 'N/A' ?></li>
                                         </ul>
-                                        
-
                                     </div>
                                 </td>
                                
                             </tr>
-                            <br>
-                            <br>
+
                             <tr>
                                 <td width="1000" valign="top">
                                     <div style="font-size: 15px; margin-bottom: 5px; text-align:left">
@@ -141,19 +134,14 @@
                                         <p style="margin:0px; padding: 0px 0px 5px 0px; font-size: 16px; color: #000;  text-decoration: underline;"><strong>Diagnosis</strong></p>
                                         
                                         <ul style="padding-left : 18px; margin-top: 5px;">
-                                            <li style="padding: 2px 0px"><?= $diag->diagnosis ?></li>
-                                            <!--<li style="padding: 2px 0px">Prediabetes (diagnosed)</li>-->
-                                            <!--<li style="padding: 2px 0px">Iron deficiency (diagnosed)</li>-->
-                                            <!--<li style="padding: 2px 0px">Hyperlipidemia (diagnosed)</li>-->
+                                            <li style="padding: 2px 0px"><?= !empty($diag) ? $diag->diagnosis : 'N/A' ?></li>
                                         </ul>
-                                        
-
                                     </div>
                                 </td>
                                
                             </tr>
                             
-                            <br>
+
                              <tr>
                                 <td width="1000" valign="top">
                                     <div style="font-size: 15px; margin-bottom: 5px; text-align:left">
@@ -161,17 +149,12 @@
                                         <p style="margin:0px; padding: 0px 0px 5px 0px; font-size: 16px; color: #000;  text-decoration: underline;"><strong>investigation</strong></p>
                                         
                                         <ul style="padding-left : 18px; margin-top: 5px;">
-                                            <li style="padding: 2px 0px"><?= $diag->investigation ?></li>
-                                            <!--<li style="padding: 2px 0px">Fasting Lipid Profile (3months)</li>-->
-                                            <!--<li style="padding: 2px 0px">Ft3, Ft4, Tsh(4months)</li>-->
-                                          
+                                            <li style="padding: 2px 0px"><?= !empty($diag) ? $diag->investigation : 'N/A' ?></li>
                                         </ul>
-                                        
-
                                     </div>
                                 </td>
                             </tr>
-                            <br>
+
                               <tr>
                                 <td width="1000" valign="top">
                                     <div style="font-size: 15px; margin-bottom: 5px; text-align:left">
@@ -179,14 +162,12 @@
                                         <p style="margin:0px; padding: 0px 0px 5px 0px; font-size: 16px; color: #000;  text-decoration: underline;"><strong>Advice</strong></p>
                                         
                                         <ul style="padding-left : 18px; margin-top: 5px;">
-                                            <li style="padding: 2px 0px"><?= $diag->advice ?></li>
-                                            <!--<li style="padding: 2px 0px">No Drug Allergy</li>-->
-                                            <!--<li style="padding: 2px 0px">Does not have dust allergy</li>-->
+                                            <li style="padding: 2px 0px"><?= !empty($diag) ? $diag->advice : 'N/A' ?></li>
                                         </ul>
                                     </div>
                                 </td>
                             </tr>
-                         <br>
+
 
                           
                             <tr>
@@ -196,9 +177,7 @@
                                         <p style="margin:0px; padding: 0px 0px 5px 0px; font-size: 16px; color: #000;  text-decoration: underline;"><strong>Follow up</strong></p>
                                         
                                         <ul style="padding-left : 18px; margin-top: 5px;">
-                                            <li style="padding: 2px 0px"><?= $diag->followup ?></li>
-                                            <!--<li style="padding: 2px 0px">Fasting Lipid Profile (3months)</li>-->
-                                            <!--<li style="padding: 2px 0px">Ft3, Ft4, Tsh(4months)</li>-->
+                                            <li style="padding: 2px 0px"><?= !empty($diag) ? $diag->followup : 'N/A' ?></li>
                                         </ul>
                                     </div>
                                 </td>
@@ -206,7 +185,7 @@
                         </table>
                     </td>
                 </tr>
-                <br>
+
                 
                 <tr>
                     <td> <p style="margin:0px; padding:0px 0px 5px 0px; font-size: 16px; color: #000; text-decoration: underline;"><strong>Prescription</strong></p></td>
@@ -254,19 +233,19 @@
                 </tr>
 
               
-                <br><br><br>
+
                  <tr> 
-                       <td colspan="4" style="text-align: right;">   <?php if($doc_det->digital_signature!=''){ ?>
+                       <td colspan="4" style="text-align: right;">   <?php if(!empty($doc_det) && $doc_det->digital_signature!=''){ ?>
                            <img src="<?php echo base_url(); ?>uploads/doctors/<?= $doc_det->digital_signature; ?>" style="width: 100px;">     
                           <?php } ?></td>
                 </tr>
                  <tr>
-                    <td style="font-size: 17px; text-align: right;" colspan="4"><?=$doc_det->doctor_name?></td> 
+                    <td style="font-size: 17px; text-align: right;" colspan="4"><?= !empty($doc_det) ? $doc_det->doctor_name : '' ?></td> 
                     
                    
                 </tr>
                  <tr>
-                    <td style="font-size: 17px; text-align: right;" colspan="4"><?= $doc_det->doctor_license_no; ?></td>
+                    <td style="font-size: 17px; text-align: right;" colspan="4"><?= !empty($doc_det) ? $doc_det->doctor_license_no : ''; ?></td>
                    
                 </tr>
                  

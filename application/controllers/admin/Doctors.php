@@ -84,6 +84,7 @@ class Doctors extends MY_Controller {
 
     function add() {//print_r($_FILES);exit;
         $this->data['page_title'] = 'Add Doctors'; 
+        $this->data['title'] = 'Add Doctor'; 
         
            $specialisation = $this->doctors_model->get_specialisations();
         // print_r($specialisation);
@@ -348,6 +349,7 @@ class Doctors extends MY_Controller {
         $specialisation = $this->doctors_model->get_specialisations();
         $this->data['specialisation'] = $specialisation;
         
+        $this->data['title'] = 'Edit Doctor';
         $this->load->view('admin/includes/header', $this->data);
 
         $this->load->view('admin/edit_doctor', $this->data);
@@ -404,9 +406,8 @@ class Doctors extends MY_Controller {
         }
         else
         {
-            $this->$data['doctor_data'] = "";
-    
-        $this->data['doctor_data_symptom_ids'] = "";
+            $this->data['doctor_data'] = [];
+            $this->data['doctor_data_symptom_ids'] = [];
         }
         
         $this->data['title'] = 'Manage Doctor Categories';

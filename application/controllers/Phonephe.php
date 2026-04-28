@@ -170,7 +170,7 @@ class Phonephe extends MY_Controller {
             $otp_message = "Dear ".$row->patient_name." your booking no.".$appointment_id." is successfully placed, awaiting for doctor confirmation. Thanks & Regards...! DOCTTO";
             $template_id = '1407168691886113081';
 
-            $this->user->send_message($otp_message,$row->patient_mobile,$template_id);
+            $this->User->send_message($otp_message,$row->patient_mobile,$template_id);
 
             //$date=date("d M,Y",strtotime($date));
             //return array('status'=>TRUE,'message'=>'Appointment Success','first_name'=>$first_name,'doctor_name'=>$doctor_name,'patient_name'=>$patient_name,'date'=>$date,'time_slot_value'=>$time_slot_value); 
@@ -373,8 +373,8 @@ class Phonephe extends MY_Controller {
                         // Send SMS
                         $otp_message = "Dear " . $appointment->patient_name . " your booking no." . $confirmed_appointment_id . " is successfully placed, awaiting for doctor confirmation. Thanks & Regards...! DOCTTO";
                         $template_id = '1407168691886113081';
-                        $this->load->model('User');
-                        $this->user->send_message($otp_message, $appointment->patient_mobile, $template_id);
+                        
+                        $this->User->send_message($otp_message, $appointment->patient_mobile, $template_id);
                         
                         log_message('info', 'PhonePe Webhook: Appointment created successfully. ID: ' . $confirmed_appointment_id);
                     } else {

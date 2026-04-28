@@ -16,11 +16,11 @@ if (!$conn) {
 }
 
 // 1. Find the latest subscription for testing (Dr T NAGARJUN)
-$sql = "SELECT ds.*, d.name as doctor_name, d.phone as doctor_phone, dsp.name as plan_name, dsp.price as plan_price
+$sql = "SELECT ds.*, d.doctor_name, d.mobile_number as doctor_phone, dsp.name as plan_name, dsp.price as plan_price
         FROM doctor_subscriptions ds 
         JOIN doctors d ON d.id = ds.doctor_id 
-        JOIN doctor_subscription_plans dsp ON dsp.id = ds.doctor_subscription_plan_id
-        WHERE d.phone = '7659805507' 
+        JOIN subscription_plans dsp ON dsp.id = ds.doctor_subscription_plan_id
+        WHERE d.mobile_number = '7659805507' 
         ORDER BY ds.id DESC LIMIT 1";
 
 $res = mysqli_query($conn, $sql);

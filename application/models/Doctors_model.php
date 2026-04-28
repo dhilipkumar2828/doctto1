@@ -586,7 +586,7 @@ class Doctors_model extends CI_Model
                 $otp_message = "Dear " . $row->patient_name . " your booking no." . $appointment_id . " is successfully placed, awaiting for doctor confirmation. Thanks & Regards...! DOCTTO";
                 $template_id = '1407168691886113081';
 
-                $this->user->send_message($otp_message, $row->patient_mobile, $template_id);
+                $this->User->send_message($otp_message, $row->patient_mobile, $template_id);
 
 
                 return array('status' => TRUE, 'message' => 'Appointment Success', 'first_name' => $first_name, 'doctor_name' => $doctor_name, 'patient_name' => $row->patient_name, 'date' => $date, 'time_slot_value' => $row->time_slot_value);
@@ -1051,7 +1051,7 @@ class Doctors_model extends CI_Model
 
 
 
-    function razerpayOrderidAppointment($patient_id, $doctor_id, $date, $time_slot_name, $time_slot_value, $patient_name, $patient_mobile, $patient_age, $patient_gender, $patient_visiting_purpose, $consultation_fee, $order_id, $razorpay_keyid, $type)
+    function razerpayOrderidAppointment($patient_id, $doctor_id, $date, $time_slot_name, $time_slot_value, $patient_name, $patient_mobile, $patient_email, $patient_age, $patient_gender, $patient_visiting_purpose, $consultation_fee, $order_id, $razorpay_keyid, $type)
     {
 
         $table = "doctor_appointments";
@@ -1065,7 +1065,6 @@ class Doctors_model extends CI_Model
         if (count($data1) > 0) {
             return array('status' => FALSE, 'message' => 'Slot already Booked');
         }
-
         if ($order_id != '') {
             $order_id = $order_id;
         }
@@ -1073,10 +1072,11 @@ class Doctors_model extends CI_Model
             $order_id = '';
         }
         $table = "doctor_appointments";
-        $data = array('patient_id' => $patient_id, 'doctor_id' => $doctor_id, 'date' => $date, 'time_slot_name' => $time_slot_name, 'time_slot_value' => $time_slot_value, 'patient_name' => $patient_name, 'patient_mobile' => $patient_mobile, 'patient_age' => $patient_age, 'patient_gender' => $patient_gender, 'patient_visiting_purpose' => $patient_visiting_purpose, 'consultation_fee' => $consultation_fee, 'order_id' => $order_id, 'type' => $type);
+        $data = array('patient_id' => $patient_id, 'doctor_id' => $doctor_id, 'date' => $date, 'time_slot_name' => $time_slot_name, 'time_slot_value' => $time_slot_value, 'patient_name' => $patient_name, 'patient_mobile' => $patient_mobile, 'patient_email' => $patient_email, 'patient_age' => $patient_age, 'patient_gender' => $patient_gender, 'patient_visiting_purpose' => $patient_visiting_purpose, 'appointment_type'=>$type,'consultation_fee' => $consultation_fee, 'order_id' => $order_id, 'type' => $type);
 
-        $res = $this->db->insert("online_doctor_appointments", $data);
+        $res = $this->db->insert("doctor_appointments", $data);
         // echo $this->db->last_query();die;
+
         if ($res) {
             $appointment_id = $this->db->insert_id();
 
@@ -1165,7 +1165,6 @@ class Doctors_model extends CI_Model
             $otp_message = "Dear " . $patient_name . " your booking no." . $appointment_id . " is successfully placed, awaiting for doctor confirmation. Thanks & Regards...! DOCTTO";
             $template_id = '1407168691886113081';
 
-            $this->load->model('User');
             $this->User->send_message($otp_message, $patient_mobile, $template_id);
 
             $date = date("d M,Y", strtotime($date));
@@ -1428,12 +1427,12 @@ class Doctors_model extends CI_Model
 
                         $doctor_row = $this->db->where("id", $patient_row->doctor_id)->get("doctors")->row();
 
-                    /* $otp_message = "Dear ".$doctor_row->doctor_name." your booking no.".$appointment_id." is cancelled by patient Thank and regards DOCTTO Thanks & Regards...! DOCTTO";
+                   $otp_message = "Dear ".$doctor_row->doctor_name." your booking no.".$appointment_id." is cancelled by patient Thank and regards DOCTTO Thanks & Regards...! DOCTTO";
                      $template_id = '1407168691897786773';
-                     $this->user->send_message($otp_message,$doctor_row->mobile_number,$template_id);*/
+                     $this->User->send_message($otp_message,$doctor_row->mobile_number,$template_id);
 
-                    /*$arr = array('status'=>TRUE,'message'=>"Appointment cancelled successfully");
-                     return $arr;   */
+                     $arr = array('status'=>TRUE,'message'=>"Appointment cancelled successfully");
+                     return $arr;   
                     }
 
                 }
@@ -1655,7 +1654,7 @@ class Doctors_model extends CI_Model
 
             $otp_message = "Dear " . $doctor_row->doctor_name . " your booking no." . $appointment_id . " is cancelled by patient Thank and regards DOCTTO Thanks & Regards...! DOCTTO";
             $template_id = '1407168691897786773';
-            $this->user->send_message($otp_message, $doctor_row->mobile_number, $template_id);
+            $this->User->send_message($otp_message, $doctor_row->mobile_number, $template_id);
 
             $arr = array('status' => TRUE, 'message' => "Appointment cancelled successfully");
             return $arr;
@@ -2095,7 +2094,7 @@ class Doctors_model extends CI_Model
         $this->db->where('id', $payment_id);
         $this->db->update('doctor_subscription_payments', array(
             'transaction_id' => $merchant_transaction_id,
-            'phonepe_order_id' => $order_result['orderId'] ?? null,
+            'phonepe_transaction_id' => $order_result['orderId'] ?? null,
             'payment_status' => 'initiated'
         ));
 
@@ -2141,7 +2140,6 @@ class Doctors_model extends CI_Model
                 $this->db->where('id', $payment->id);
                 $this->db->update('doctor_subscription_payments', array(
                     'payment_status' => $final_status,
-                    'phonepe_response' => json_encode($verification_result),
                     'updated_at' => date('Y-m-d H:i:s')
                 ));
 
@@ -2306,7 +2304,6 @@ class Doctors_model extends CI_Model
         $this->db->where('transaction_id', $merchant_transaction_id);
         $this->db->update('doctor_subscription_payments', array(
             'payment_status' => $payment_status,
-            'phonepe_response' => json_encode($verification_result),
             'updated_at' => date('Y-m-d H:i:s')
         ));
 

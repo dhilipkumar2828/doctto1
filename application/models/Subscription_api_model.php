@@ -73,6 +73,11 @@ class Subscription_api_model extends CI_Model
         $type = $data['type'];
         unset($data['type']);
 
+        // Default next billing date if missing: duration - 1 day
+        if (!isset($data['next_billing_date']) && isset($data['duration'])) {
+            $data['next_billing_date'] = date('Y-m-d', strtotime('+' . ($data['duration'] - 1) . ' days'));
+        }
+
         if ($type == 'doctor') {
             // Check for current active subscription
             $current = $this->db->get_where('doctor_subscriptions', [
@@ -89,20 +94,32 @@ class Subscription_api_model extends CI_Model
 
             // Deactivate all existing active subscriptions
             $this->db->where('doctor_id', $data['doctor_id']);
+            $this->db->group_start();
             $this->db->where('status', 'active');
+            $this->db->or_where('status', 'notified');
+            $this->db->group_end();
             $this->db->update('doctor_subscriptions', ['status' => 'expired']);
-
+            
             $insert_data = [
                 'doctor_id' => $data['doctor_id'],
                 'doctor_subscription_plan_id' => $data['plan_id'],
-                'status' => 'active',
+                'status' => $data['status'] ?? 'active',
                 'start_at' => date('Y-m-d H:i:s'),
                 'end_at' => date('Y-m-d H:i:s', strtotime('+' . $data['duration'] . ' days')),
-                'amount' => $data['amount'],
+                'amount' => $data['amount'] ?? 0,
                 'payment_id' => $data['payment_id'] ?? null,
-                'payment_status' => 'completed',
-                'auto_renew' => 1,
+                'payment_status' => $data['payment_status'] ?? 'completed',
+                'auto_renew' => $data['auto_renew'] ?? 1,
                 'featured_status' => $data['featured_status'] ?? 0,
+                'payment_gateway' => $data['payment_gateway'] ?? 'phonepe',
+                'autopay_enabled' => $data['autopay_enabled'] ?? 0,
+                'autopay_status' => ($data['autopay_enabled'] ?? 0) ? 'active' : null,
+                'autopay_agreement_id' => $data['autopay_agreement_id'] ?? null,
+                'phonepe_agreement_id' => $data['autopay_agreement_id'] ?? null,
+                'merchant_subscription_id' => $data['merchant_subscription_id'] ?? null,
+                'phonepe_subscription_id' => $data['phonepe_subscription_id'] ?? null,
+                'next_billing_date' => $data['next_billing_date'] ?? null,
+                'next_renewal_date' => date('Y-m-d H:i:s', strtotime('+' . $data['duration'] . ' days')),
                 'created_at' => date('Y-m-d H:i:s')
             ];
 
@@ -125,16 +142,71 @@ class Subscription_api_model extends CI_Model
                 }
             }
 
+            $existing = null;
+            if (isset($data['payment_id']) && !empty($data['payment_id'])) {
+                $existing = $this->db->get_where('user_subscriptions', [
+                    'user_id' => $data['user_id'],
+                    'payment_id' => $data['payment_id']
+                ])->row();
+            }
+
+            // Fallback: If no match by payment_id, check for any recent pending/initiated sub for same user/plan
+            if (!$existing) {
+                $this->db->where('user_id', $data['user_id']);
+                $this->db->where('plan_id', $data['plan_id']);
+                $this->db->group_start();
+                    $this->db->where('status', 'initiated');
+                    $this->db->or_where('status', 'pending');
+                    $this->db->or_where('payment_status', 'pending');
+                $this->db->group_end();
+                $this->db->where('created_at >=', date('Y-m-d H:i:s', strtotime('-30 minutes')));
+                $this->db->order_by('id', 'DESC');
+                $existing = $this->db->get('user_subscriptions')->row();
+            }
+
+            if ($existing) {
+                $update_data = [
+                    'payment_status' => $data['payment_status'] ?? 'completed',
+                    'merchant_subscription_id' => $data['merchant_subscription_id'] ?? $existing->merchant_subscription_id,
+                    'phonepe_subscription_id' => $data['phonepe_subscription_id'] ?? $existing->phonepe_subscription_id,
+                    'autopay_agreement_id' => $data['autopay_agreement_id'] ?? $existing->autopay_agreement_id,
+                    'autopay_enabled' => $existing->autopay_enabled,
+                    'next_billing_date' => $data['next_billing_date'] ?? $existing->next_billing_date,
+                ];
+                
+                // If the incoming data HAS a payment_id but the existing one didn't (or we're syncing), update it
+                if (isset($data['payment_id']) && !empty($data['payment_id'])) {
+                    $update_data['payment_id'] = $data['payment_id'];
+                }
+
+                $this->db->where('id', $existing->id);
+                $this->db->update('user_subscriptions', $update_data);
+                return $this->db->get_where('user_subscriptions', ['id' => $existing->id])->row();
+            }
+
             $this->db->where('user_id', $data['user_id']);
+            $this->db->group_start();
             $this->db->where('status', 'active');
+            $this->db->or_where('status', 'notified');
+            $this->db->group_end();
             $this->db->update('user_subscriptions', ['status' => 'expired']);
 
             $insert_data = [
                 'user_id' => $data['user_id'],
                 'plan_id' => $data['plan_id'],
-                'status' => 'active',
+                'status' => 'initiated',
                 'start_date' => date('Y-m-d H:i:s'),
                 'end_date' => date('Y-m-d H:i:s', strtotime('+' . $data['duration'] . ' days')),
+                'amount' => $data['amount'] ?? 0,
+                'payment_id' => $data['payment_id'] ?? null,
+                'payment_status' => $data['payment_status'] ?? 'completed',
+                'auto_renew' => $data['auto_renew'] ?? 1,
+                'payment_gateway' => $data['payment_gateway'] ?? 'phonepe',
+                'autopay_enabled' => $data['autopay_enabled'] ?? 1,
+                'autopay_agreement_id' => $data['autopay_agreement_id'] ?? null,
+                'merchant_subscription_id' => $data['merchant_subscription_id'] ?? null,
+                'phonepe_subscription_id' => $data['phonepe_subscription_id'] ?? null,
+                'next_billing_date' => $data['next_billing_date'] ?? null,
                 'created_at' => date('Y-m-d H:i:s')
             ];
 
@@ -266,12 +338,12 @@ class Subscription_api_model extends CI_Model
 
     public function get_plan_doctors($plan_id = null, $exclude_user_id = null)
     {
-        $this->db->select('spd.plan_id, spd.app_image, d.id as doctor_id, d.doctor_name, d.doctor_image, d.designations, d.mobile_number, d.morning_start_time, d.morning_end_time, d.afternoon_start_time, d.afternoon_end_time, d.evening_start_time, d.evening_end_time, d.specialisation, d.specialist_in, d.rating, d.rating_count, d.blue_tick, spd.sort_order, sp.name as plan_name, sp.id as subscription_plan_id, sp.price as plan_price');
+        $this->db->select('spd.plan_id, spd.app_image, d.id as doctor_id, d.doctor_name, d.doctor_image, d.designations, d.mobile_number, d.morning_start_time, d.morning_end_time, d.afternoon_start_time, d.afternoon_end_time, d.evening_start_time, d.evening_end_time, d.specialisation, d.specialist_in, d.rating, d.rating_count, d.blue_tick, spd.sort_order, sp.name as plan_name, sp.id as subscription_plan_id, sp.price as plan_price, sp.call_chat, sp.whatsapp_chat');
         $this->db->from('subscription_plan_doctors spd');
         $this->db->join('doctors d', 'spd.doctor_id = d.id');
 
-        // Join with doctor_subscriptions to verify payment and active status
-        $this->db->join('doctor_subscriptions ds', 'ds.doctor_id = d.id AND ds.status = \'active\'');
+        // Join with doctor_subscriptions to get extra info if available
+        $this->db->join('doctor_subscriptions ds', 'ds.doctor_id = d.id AND ds.status = \'active\'', 'left');
 
         // Join with subscription_plans using the plan_id they were assigned to (spd.plan_id)
         $this->db->join('subscription_plans sp', 'sp.id = spd.plan_id');
@@ -280,10 +352,8 @@ class Subscription_api_model extends CI_Model
             $this->db->where('spd.plan_id', $plan_id);
         }
 
-        // Rigor checks: Expiry, Account Status, Featured
-        $this->db->where('ds.end_at >=', date('Y-m-d H:i:s'));
+        // Account Status check
         $this->db->where('d.doctor_show_status', 'active');
-        $this->db->where('ds.featured_status', 1);
 
         // Exclude doctors already subscribed by this specific user
         if ($exclude_user_id) {
@@ -298,6 +368,12 @@ class Subscription_api_model extends CI_Model
         // print_r($this->db->last_query());
         // die;
         foreach ($doctors as $doc) {
+            $doc->call_chat_number = !empty($doc->call_chat) ? $doc->call_chat : '';
+            $doc->whatsapp_chat_number = !empty($doc->whatsapp_chat) ? $doc->whatsapp_chat : '';
+
+            if (!empty($doc->call_chat)) {
+                $doc->mobile_number = $doc->call_chat;
+            }
             $doc->app_image = !empty($doc->app_image) ? base_url() . 'uploads/doctor_banners/' . $doc->app_image : '';
             $doc->doctor_image = !empty($doc->doctor_image) ? base_url() . 'uploads/doctors/' . $doc->doctor_image : base_url() . 'uploads/profile-icon-3.png';
             $doc->specialisation_name = $this->get_specialisation_name($doc->specialisation);
@@ -313,16 +389,21 @@ class Subscription_api_model extends CI_Model
 
     public function get_all_subscribed_doctors($exclude_user_id = null)
     {
-        $this->db->select('ds.id as subscription_id, ds.start_at, ds.end_at, ds.status as subscription_status, d.id as doctor_id, d.doctor_name, d.doctor_image, d.designations, d.mobile_number, d.morning_start_time, d.morning_end_time, d.afternoon_start_time, d.afternoon_end_time, d.evening_start_time, d.evening_end_time, d.specialisation, d.specialist_in, d.rating, d.rating_count, d.blue_tick, sp.name as plan_name, sp.price as plan_price');
+        $this->db->select('ds.id as subscription_id, ds.start_at, ds.featured_status,ds.end_at, ds.status as subscription_status, d.id as doctor_id, d.doctor_name, d.doctor_image, d.designations, d.mobile_number, d.morning_start_time, d.morning_end_time, d.afternoon_start_time, d.afternoon_end_time, d.evening_start_time, d.evening_end_time, d.specialisation, d.specialist_in, d.rating, d.rating_count, d.blue_tick, sp.name as plan_name, sp.price as plan_price, sp.call_chat, sp.whatsapp_chat');
         $this->db->from('doctors d');
-        $this->db->join('doctor_subscriptions ds', 'd.id = ds.doctor_id');
-        $this->db->join('subscription_plans sp', 'sp.id = ds.doctor_subscription_plan_id');
+        $this->db->join('doctor_subscriptions ds', 'd.id = ds.doctor_id AND ds.status = \'active\'', 'left');
+        $this->db->join('subscription_plan_doctors spd', 'd.id = spd.doctor_id', 'left');
+        $this->db->join('subscription_plans sp', 'sp.id = COALESCE(ds.doctor_subscription_plan_id, spd.plan_id)', 'left');
 
-        // Filter by subscription status and rigor checks
-        $this->db->where('ds.status', 'active');
-        $this->db->where('ds.end_at >=', date('Y-m-d H:i:s'));
+        // Filter by relevance: Must be active doctor and have either a subscription OR a plan assignment
+        $this->db->group_start();
+        $this->db->where('ds.id IS NOT NULL', NULL, FALSE);
+        $this->db->or_where('spd.plan_id IS NOT NULL', NULL, FALSE);
+        $this->db->group_end();
+        
+        $this->db->where('ds.featured_status', '1');
+        
         $this->db->where('d.doctor_show_status', 'active');
-        $this->db->where('ds.featured_status', 1);
 
         // Exclude doctors already subscribed by this specific user
         if ($exclude_user_id) {
@@ -332,7 +413,13 @@ class Subscription_api_model extends CI_Model
         $this->db->group_by('d.id');
         $doctors = $this->db->get()->result();
 
-        foreach ($doctors as $doc) {
+       foreach ($doctors as $doc) {
+            $doc->call_chat_number = !empty($doc->call_chat) ? $doc->call_chat : '';
+            $doc->whatsapp_chat_number = !empty($doc->whatsapp_chat) ? $doc->whatsapp_chat : '';
+
+            if (!empty($doc->call_chat)) {
+                $doc->mobile_number = $doc->call_chat;
+            }
             // Mapping for doctor list response
             $doc->doctor_image = !empty($doc->doctor_image) ? base_url() . 'uploads/doctors/' . $doc->doctor_image : base_url() . 'uploads/profile-icon-3.png';
             $doc->specialisation_name = $this->get_specialisation_name($doc->specialisation);
@@ -347,14 +434,29 @@ class Subscription_api_model extends CI_Model
 
     public function get_subscribed_doctor_details($doctor_id)
     {
-        $this->db->select('d.*, ds.status as subscription_status, ds.start_at, ds.end_at, ds.featured_status, sp.name as subscription_plan_name, sp.price as plan_price');
+        // Try to get plan details from either a purchase (doctor_subscriptions) OR a featured assignment (subscription_plan_doctors)
+        $this->db->select('d.*, sp.name as subscription_plan_name, sp.price as plan_price, sp.call_chat as plan_call_chat, sp.whatsapp_chat as plan_whatsapp_chat, ds.status as subscription_status, ds.start_at, ds.end_at, ds.featured_status');
         $this->db->from('doctors d');
-        $this->db->join('doctor_subscriptions ds', 'd.id = ds.doctor_id', 'left');
-        $this->db->join('subscription_plans sp', 'sp.id = ds.doctor_subscription_plan_id', 'left');
+        // Left join with purchases
+        $this->db->join('doctor_subscriptions ds', 'd.id = ds.doctor_id AND ds.status = \'active\'', 'left');
+        // Left join with featured assignments (Fallback)
+        $this->db->join('subscription_plan_doctors spd', 'spd.doctor_id = d.id', 'left');
+        // Join with plans - prioritize purchase plan, then featured plan
+        $this->db->join('subscription_plans sp', 'sp.id = COALESCE(ds.doctor_subscription_plan_id, spd.plan_id)', 'left');
+        
         $this->db->where('d.id', $doctor_id);
+        $this->db->order_by('ds.id', 'DESC'); // Latest purchase if any
         $doctor = $this->db->get()->row();
 
         if ($doctor) {
+            // Priority override: Use contact numbers from plan if available
+            if (!empty($doctor->plan_call_chat)) {
+                $doctor->mobile_number = $doctor->plan_call_chat;
+            }
+            // Even if we override mobile_number, keep these for reference in response
+            $doctor->call_chat_number = $doctor->plan_call_chat;
+            $doctor->whatsapp_chat_number = $doctor->plan_whatsapp_chat;
+
             // ... (keeping previous logic)
             $doctor->doctor_image = !empty($doctor->doctor_image) ? base_url() . 'uploads/doctors/' . $doctor->doctor_image : base_url() . 'uploads/profile-icon-3.png';
             $doctor->cover_image = !empty($doctor->hospital_image) ? base_url() . 'uploads/doctors/' . $doctor->hospital_image : '';

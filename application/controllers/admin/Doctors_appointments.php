@@ -181,26 +181,27 @@ class Doctors_appointments extends MY_Controller {
           $data['patient_prescription_id'] = $this->db->get('patient_prescription')->row();
         
 
-                                   $this->db->where('patient_prescription_id',$data['patient_prescription_id']->id);
-          $data['eprescription'] = $this->db->get('eprescription')->result();
-          
-          
-        //   print_R( $data['eprescription']);die;
-         
-                                                    $this->db->where('appointment_id',$data['appointment_id']);
-                                                    $this->db->where('prescription_type','prescription');
-          $data['manual_prescription'] = $this->db->get('patient_prescription')->row();
-          
-                                                    $this->db->where('appointment_id',$data['appointment_id']);
-                                                    $this->db->where('prescription_type','diagnosis');
-          $data['diagnosis'] = $this->db->get('patient_prescription')->row();
-          
-        //   print_r($data['diagnosis']);die;
-          
-        //   echo $this->db->last_query();die;
-          
-         $this->db->where('patient_prescription_id',$data['patient_prescription_id']->id);
-          $data['lab_tests'] = $this->db->get('lab_tests')->result();  
+        if ($data['patient_prescription_id']) {
+            $this->db->where('patient_prescription_id', $data['patient_prescription_id']->id);
+            $data['eprescription'] = $this->db->get('eprescription')->result();
+        } else {
+            $data['eprescription'] = [];
+        }
+
+        $this->db->where('appointment_id', $data['appointment_id']);
+        $this->db->where('prescription_type', 'prescription');
+        $data['manual_prescription'] = $this->db->get('patient_prescription')->row();
+
+        $this->db->where('appointment_id', $data['appointment_id']);
+        $this->db->where('prescription_type', 'diagnosis');
+        $data['diagnosis'] = $this->db->get('patient_prescription')->row();
+
+        if ($data['patient_prescription_id']) {
+            $this->db->where('patient_prescription_id', $data['patient_prescription_id']->id);
+            $data['lab_tests'] = $this->db->get('lab_tests')->result();
+        } else {
+            $data['lab_tests'] = [];
+        }
           
          $data['val_id'] = $appointment_id;
 
@@ -223,16 +224,22 @@ class Doctors_appointments extends MY_Controller {
 
     
                              
-                             $this->db->where('id',$this->data['doctor_id']->doctor_id);
-    $this->data['doc_det'] = $this->db->get('doctors')->row();  
+    if (!empty($this->data['doctor_id'])) {
+        $this->data['doc_det'] = $this->db->get_where('doctors', ['id' => $this->data['doctor_id']->doctor_id])->row();  
+    } else {
+        $this->data['doc_det'] = null;
+    }
     
-    // echo $this->db->last_query();die;
+    if (!empty($this->data['doc_det'])) {
+        $desg_row = $this->db->get_where('designations', ['id' => $this->data['doc_det']->designations])->row();
+        $this->data['desg'] = !empty($desg_row) ? $desg_row->name : ''; 
     
-                          $this->db->where('id',$this->data['doc_det']->designations);
-    $this->data['desg'] = $this->db->get('designations')->row()->name; 
-    
-                          $this->db->where('id',$this->data['doc_det']->specialisation);
-    $this->data['spcl'] = $this->db->get('specialisation')->row()->name;   
+        $spcl_row = $this->db->get_where('specialisation', ['id' => $this->data['doc_det']->specialisation])->row();
+        $this->data['spcl'] = !empty($spcl_row) ? $spcl_row->name : '';   
+    } else {
+        $this->data['desg'] = '';
+        $this->data['spcl'] = '';
+    }
     
     // print_r($this->data['desg']);die;  
     
@@ -257,8 +264,12 @@ class Doctors_appointments extends MY_Controller {
     
   
                           
-                                   $this->db->where('patient_prescription_id',$this->data['epresp']->id);
-    $this->data['eprescription'] = $this->db->get('eprescription')->result();
+                        if (!empty($this->data['epresp'])) {
+                            $this->db->where('patient_prescription_id', $this->data['epresp']->id);
+                            $this->data['eprescription'] = $this->db->get('eprescription')->result();
+                        } else {
+                            $this->data['eprescription'] = [];
+                        }
 
         $base_path = str_replace("system", "vendor", BASEPATH);
 
@@ -266,6 +277,7 @@ class Doctors_appointments extends MY_Controller {
 
 
         $mpdf = new \Mpdf\Mpdf([
+            'tempDir' => APPPATH . 'cache/mpdf',
             'mode' => 'utf-8',
             'format' => 'A4',
             'margin_left' => 20,
@@ -276,18 +288,16 @@ class Doctors_appointments extends MY_Controller {
 
         $this->data["mpdf"] = $mpdf;
 
-        $mpdf->SetWatermarkImage(
-                base_url() , 0.05, ''
-        );
-        $mpdf->showWatermarkImage = true;
+        $mpdf->SetWatermarkText('Doctto', 0.05);
+        $mpdf->showWatermarkText = true;
         $mpdf->use_kwt = true;
         $mpdf->autoPageBreak = true;
 
-        //$html = file_get_contents($_GET['url']);
-        //$html = $this->load->view("pos_agreement/index", $this->data, true);
         $html = $this->load->view("invoice", $this->data, true);
+        
+        if (ob_get_contents()) ob_clean();
         $mpdf->WriteHTML($html);
-        $mpdf->Output(); 
+        $mpdf->Output('prescription.pdf', 'I'); 
     }
     
     //  function labtest_pdf($appointment_id) {
@@ -374,14 +384,23 @@ class Doctors_appointments extends MY_Controller {
     $this->data['doctor_id'] = $this->db->get('doctor_appointments')->row();    
     
                              
-                             $this->db->where('id',$this->data['doctor_id']->doctor_id);
-    $this->data['doc_det'] = $this->db->get('doctors')->row();  
+    if (!empty($this->data['doctor_id'])) {
+        $this->db->where('id',$this->data['doctor_id']->doctor_id);
+        $this->data['doc_det'] = $this->db->get('doctors')->row();  
+    } else {
+        $this->data['doc_det'] = null;
+    }
     
-                          $this->db->where('id',$this->data['doc_det']->designations);
-    $this->data['desg'] = $this->db->get('designations')->row()->name; 
+    if (!empty($this->data['doc_det'])) {
+        $this->db->where('id',$this->data['doc_det']->designations);
+        $this->data['desg'] = $this->db->get('designations')->row()->name; 
     
-                          $this->db->where('id',$this->data['doc_det']->specialisation);
-    $this->data['spcl'] = $this->db->get('specialisation')->row()->name;   
+        $this->db->where('id',$this->data['doc_det']->specialisation);
+        $this->data['spcl'] = $this->db->get('specialisation')->row()->name;   
+    } else {
+        $this->data['desg'] = '';
+        $this->data['spcl'] = '';
+    }
         
         
     //                          $this->db->select('doctor_id');
@@ -413,8 +432,12 @@ class Doctors_appointments extends MY_Controller {
     
   
                           
-                                   $this->db->where('patient_prescription_id',$this->data['epresp']->id);
-    $this->data['labtest'] = $this->db->get('lab_tests')->result();
+                                   if (!empty($this->data['epresp'])) {
+                                       $this->db->where('patient_prescription_id', $this->data['epresp']->id);
+                                       $this->data['labtest'] = $this->db->get('lab_tests')->result();
+                                   } else {
+                                       $this->data['labtest'] = [];
+                                   }
 
         $base_path = str_replace("system", "vendor", BASEPATH);
 
@@ -422,6 +445,7 @@ class Doctors_appointments extends MY_Controller {
 
 
         $mpdf = new \Mpdf\Mpdf([
+            'tempDir' => APPPATH . 'cache/mpdf',
             'mode' => 'utf-8',
             'format' => 'A4',
             'margin_left' => 20,
@@ -439,11 +463,11 @@ class Doctors_appointments extends MY_Controller {
         $mpdf->use_kwt = true;
         $mpdf->autoPageBreak = true;
 
-        //$html = file_get_contents($_GET['url']);
-        //$html = $this->load->view("pos_agreement/index", $this->data, true);
         $html = $this->load->view("labtest_invoice", $this->data, true);
+        
+        if (ob_get_contents()) ob_clean();
         $mpdf->WriteHTML($html);
-        $mpdf->Output();
+        $mpdf->Output('labtest.pdf', 'I');
     }
 
  

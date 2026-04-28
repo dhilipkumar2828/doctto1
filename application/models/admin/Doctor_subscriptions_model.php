@@ -116,12 +116,43 @@ class Doctor_subscriptions_model extends CI_Model {
     }
 
     function change_featured_status($id, $status) {
-        $sub = $this->get_subscription_by_id($id);
-        if ($sub) {
-            $this->db->where('doctor_id', $sub->doctor_id);
-            $this->db->where('status', 'active');
-            return $this->db->update('doctor_subscriptions', array('featured_status' => $status));
-        }
-        return false;
+        $this->db->where('id', $id);
+        return $this->db->update('doctor_subscriptions', array('featured_status' => $status));
+    }
+    function get_all_history() {
+        // Fetch doctor initial subscriptions
+        $this->db->select('ds.id, d.doctor_name as name, ds.merchant_subscription_id, ds.payment_id as transaction_id, ds.amount, ds.status, "Doctor" as type, ds.created_at');
+        $this->db->from('doctor_subscriptions ds');
+        $this->db->join('doctors d', 'ds.doctor_id = d.id');
+        $docs = $this->db->get()->result();
+
+        // Fetch customer initial subscriptions
+        $this->db->select('us.id, CONCAT(u.first_name, " ", u.last_name) as name, us.merchant_subscription_id, us.payment_id as transaction_id, us.amount, us.status, "Customer" as type, us.created_at');
+        $this->db->from('user_subscriptions us');
+        $this->db->join('users u', 'us.user_id = u.id');
+        $users = $this->db->get()->result();
+
+        // Fetch doctor recurring payments
+        $this->db->select('dsp.id, d.doctor_name as name, ds.merchant_subscription_id, dsp.transaction_id, dsp.payment_amount as amount, dsp.payment_status as status, "Doctor" as type, dsp.created_at');
+        $this->db->from('doctor_subscription_payments dsp');
+        $this->db->join('doctors d', 'dsp.doctor_id = d.id');
+        $this->db->join('doctor_subscriptions ds', 'dsp.subscription_id = ds.id', 'left');
+        $doc_payments = $this->db->get()->result();
+
+        // Fetch customer recurring payments
+        $this->db->select('usp.id, CONCAT(u.first_name, " ", u.last_name) as name, us.merchant_subscription_id, usp.transaction_id, usp.payment_amount as amount, usp.payment_status as status, "Customer" as type, usp.created_at');
+        $this->db->from('user_subscription_payments usp');
+        $this->db->join('users u', 'usp.user_id = u.id');
+        $this->db->join('user_subscriptions us', 'usp.subscription_id = us.id', 'left');
+        $user_payments = $this->db->get()->result();
+
+        $all = array_merge($docs, $users, $doc_payments, $user_payments);
+        
+        // Sort by created_at DESC
+        usort($all, function($a, $b) {
+            return strtotime($b->created_at) - strtotime($a->created_at);
+        });
+
+        return $all;
     }
 }

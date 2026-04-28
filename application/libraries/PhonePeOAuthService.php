@@ -8,11 +8,13 @@ class PhonePeOAuthService {
     private $clientVersion;
     private $oauthUrl;
     private $baseUrl;
+    private $merchantId;
     
     public function __construct() {
         $this->clientId = defined('PHONEPE_CLIENT_ID') ? PHONEPE_CLIENT_ID : 'M1Y5YWMA86HR';
         $this->clientSecret = defined('PHONEPE_CLIENT_SECRET') ? PHONEPE_CLIENT_SECRET : '168028f5-f3cf-40e3-a320-120926e1dcfb';
         $this->clientVersion = defined('PHONEPE_CLIENT_VERSION') ? PHONEPE_CLIENT_VERSION : '1';
+        $this->merchantId = defined('PHONEPE_MERCHANT_ID') ? PHONEPE_MERCHANT_ID : 'M1Y5YWMA86HR';
         // Production OAuth endpoint for standard checkout
         $this->oauthUrl = 'https://api.phonepe.com/apis/identity-manager/v1/oauth/token';
         // Base URL for other API calls
@@ -232,16 +234,24 @@ class PhonePeOAuthService {
      * With auto_debit = true, PhonePe will automatically deduct.
      */
     public function notifyRedemption($merchantOrderId, $merchantSubscriptionId, $amount, $accessToken, $autoDebit = true) {
-        $env = defined('PHONEPE_ENVIRONMENT') ? PHONEPE_ENVIRONMENT : 'PRODUCTION';
+        $env = defined('PHONEPE_ENVIRONMENT') ? PHONEPE_ENVIRONMENT : (defined('PHONEPE_MODE') ? PHONEPE_MODE : 'PRODUCTION');
+        $merchantId = (defined('PHONEPE_MERCHANT_ID') ? PHONEPE_MERCHANT_ID : 'M1Y5YWMA86HR');
+        $clientId = (defined('PHONEPE_CLIENT_ID') ? PHONEPE_CLIENT_ID : 'M1Y5YWMA86HR');
+
         $notifyUrl = ($env == 'PROD' || $env == 'PRODUCTION') 
-            ? 'https://api.phonepe.com/apis/pg/subscriptions/v2/notify'
-            : 'https://api-preprod.phonepe.com/apis/pg-sandbox/subscriptions/v2/notify';
+            ? 'https://api.phonepe.com/apis/pg/v2/subscriptions/notify'
+            : 'https://api-preprod.phonepe.com/apis/pg-sandbox/v2/subscriptions/notify';
 
         $payload = array(
+            'merchantId' => $this->merchantId,
             'merchantOrderId' => $merchantOrderId,
-            'merchantSubscriptionId' => $merchantSubscriptionId,
-            'amount' => $amount,
-            'autoDebit' => $autoDebit
+            'amount' => (int)$amount,
+            'paymentFlow' => array(
+                'type' => 'SUBSCRIPTION_CHECKOUT_REDEMPTION',
+                'merchantSubscriptionId' => $merchantSubscriptionId,
+                'redemptionRetryStrategy' => 'STANDARD',
+                'autoDebit' => (bool)$autoDebit
+            )
         );
 
         $curl = curl_init();
@@ -251,7 +261,8 @@ class PhonePeOAuthService {
         curl_setopt($curl, CURLOPT_HTTPHEADER, array(
             'Content-Type: application/json',
             'Authorization: O-Bearer ' . $accessToken,
-            'X-MERCHANT-ID: ' . ((defined('PHONEPE_MODE') && PHONEPE_MODE == 'PROD') ? 'M1Y5YWMA86HR' : explode('_', (defined('PHONEPE_CLIENT_ID') ? PHONEPE_CLIENT_ID : 'M1Y5YWMA86HR'))[0]),
+            'X-MERCHANT-ID: ' . $merchantId,
+            'X-CLIENT-ID: ' . $clientId,
             'accept: application/json'
         ));
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);

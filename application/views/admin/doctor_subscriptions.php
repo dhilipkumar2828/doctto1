@@ -17,7 +17,7 @@
         background-color: #fff3cd;
         color: #856404;
     }
-    .status-pending {
+    .status-initiated, .status-pending {
         background-color: #cce5ff;
         color: #004085;
     }
@@ -167,26 +167,41 @@
                                             <td>
                                                 <div class="btn-group">
                                                     <?php if($selected_type == 'doctor'): ?>
-                                                    <a href="<?= base_url() ?>admin/doctor_subscriptions/edit/<?= $subscription->id ?>" class="btn btn-xs btn-primary" title="Edit" style="margin-right: 3px;">
-                                                        <i class="fa fa-edit"></i>
-                                                    </a>
-
-                                                    <?php if($subscription->featured_status == 1): ?>
-                                                        <a href="<?= base_url() ?>admin/doctor_subscriptions/toggleFeaturedStatus/<?= $subscription->id ?>/0" 
-                                                           class="btn btn-xs btn-warning" title="Disable for Plan Doctors"
-                                                           style="margin-right: 3px;"
-                                                           onclick="return confirm('Disable this doctor from being selected for Featured Plans?')">
-                                                            <i class="fa fa-lock"></i>
+                                                        <a href="<?= base_url() ?>admin/doctor_subscriptions/edit/<?= $subscription->id ?>" class="btn btn-xs btn-primary" title="Edit" style="margin-right: 3px;">
+                                                            <i class="fa fa-edit"></i>
                                                         </a>
+
+                                                        <?php if($subscription->featured_status == 1): ?>
+                                                            <a href="<?= base_url() ?>admin/doctor_subscriptions/toggleFeaturedStatus/<?= $subscription->id ?>/0" 
+                                                               class="btn btn-xs btn-warning" title="Disable for Plan Doctors"
+                                                               style="margin-right: 3px;"
+                                                               onclick="return confirm('Disable this doctor from being selected for Featured Plans?')">
+                                                                <i class="fa fa-lock"></i>
+                                                            </a>
+                                                        <?php else: ?>
+                                                            <a href="<?= base_url() ?>admin/doctor_subscriptions/toggleFeaturedStatus/<?= $subscription->id ?>/1" 
+                                                               class="btn btn-xs btn-info" title="Enable for Plan Doctors"
+                                                               style="margin-right: 3px;"
+                                                               onclick="return confirm('Enable this doctor for Featured Plan selection?')">
+                                                                <i class="fa fa-unlock"></i>
+                                                            </a>
+                                                        <?php endif; ?>
                                                     <?php else: ?>
-                                                        <a href="<?= base_url() ?>admin/doctor_subscriptions/toggleFeaturedStatus/<?= $subscription->id ?>/1" 
-                                                           class="btn btn-xs btn-info" title="Enable for Plan Doctors"
-                                                           style="margin-right: 3px;"
-                                                           onclick="return confirm('Enable this doctor for Featured Plan selection?')">
-                                                            <i class="fa fa-unlock"></i>
-                                                        </a>
-                                                    <?php endif; ?>
+                                                        <?php if($subscription->status != 'active'): ?>
+                                                            <a href="<?= base_url() ?>admin/doctor_subscriptions/changeStatus/<?= $subscription->id ?>/active?type=<?= $selected_type ?>" 
+                                                               class="btn btn-xs btn-success" title="Enable (Set to Active)" style="margin-right: 3px;"
+                                                               onclick="return confirm('Are you sure you want to activate this subscription?')">
+                                                                <i class="fa fa-unlock"></i>
+                                                            </a>
+                                                        <?php endif; ?>
 
+                                                        <?php if($subscription->status == 'active'): ?>
+                                                            <a href="<?= base_url() ?>admin/doctor_subscriptions/changeStatus/<?= $subscription->id ?>/expired?type=<?= $selected_type ?>" 
+                                                               class="btn btn-xs btn-warning" title="Disable (Set to Expired)" style="margin-right: 3px;"
+                                                               onclick="return confirm('Are you sure you want to expire this subscription?')">
+                                                                <i class="fa fa-lock"></i>
+                                                            </a>
+                                                        <?php endif; ?>
                                                     <?php endif; ?>
                                                     
                                                     <a href="<?= base_url() ?>admin/doctor_subscriptions/changeStatus/<?= $subscription->id ?>/cancelled?type=<?= $selected_type ?>" 

@@ -265,7 +265,15 @@ class Subscription_api extends REST_Controller {
             'plan_id' => $plan_id,
             'duration' => $plan->duration_days,
             'amount' => $plan->price,
-            'payment_id' => $payment_id
+            'payment_id' => $payment_id,
+            'payment_status' => $this->post('payment_status') ?? 'completed',
+            'payment_gateway' => $this->post('payment_gateway') ?? 'phonepe',
+            'auto_renew' => $this->post('auto_renew') ?? 1,
+            'autopay_enabled' => $this->post('autopay_enabled') ?? 0,
+            'autopay_agreement_id' => $this->post('autopay_agreement_id'),
+            'merchant_subscription_id' => $this->post('merchant_subscription_id'),
+            'phonepe_subscription_id' => $this->post('phonepe_subscription_id'),
+            'next_billing_date' => $this->post('next_billing_date')
         ];
 
         $result = $this->subscription_api_model->buy_subscription($data);
@@ -304,7 +312,15 @@ class Subscription_api extends REST_Controller {
             'plan_id' => $plan_id,
             'duration' => $plan->duration_days,
             'amount' => $plan->price,
-            'payment_id' => $payment_id
+            'payment_id' => $payment_id,
+            'payment_status' => $this->post('payment_status') ?? 'completed',
+            'payment_gateway' => $this->post('payment_gateway') ?? 'phonepe',
+            'auto_renew' => $this->post('auto_renew') ?? 1,
+            'autopay_enabled' => $this->post('autopay_enabled') ?? 0,
+            'autopay_agreement_id' => $this->post('autopay_agreement_id'),
+            'merchant_subscription_id' => $this->post('merchant_subscription_id'),
+            'phonepe_subscription_id' => $this->post('phonepe_subscription_id'),
+            'next_billing_date' => $this->post('next_billing_date')
         ];
 
         $result = $this->subscription_api_model->buy_subscription($data);
@@ -342,7 +358,15 @@ class Subscription_api extends REST_Controller {
             'plan_id' => $plan_id,
             'duration' => $duration,
             'amount' => $amount,
-            'payment_id' => $payment_id
+            'payment_id' => $payment_id,
+            'payment_status' => $this->post('payment_status') ?? 'completed',
+            'payment_gateway' => $this->post('payment_gateway') ?? $this->post('gateway') ?? 'phonepe',
+            'auto_renew' => $this->post('auto_renew') ?? 1,
+            'autopay_enabled' => $this->post('autopay_enabled') ?? 0,
+            'autopay_agreement_id' => $this->post('autopay_agreement_id') ?? $this->post('agreement_id'),
+            'merchant_subscription_id' => $this->post('merchant_subscription_id') ?? $this->post('merchant_sub_id'),
+            'phonepe_subscription_id' => $this->post('phonepe_subscription_id') ?? $this->post('sub_id'),
+            'next_billing_date' => $this->post('next_billing_date')
         ];
 
         if ($type == 'doctor') {
@@ -801,7 +825,6 @@ public function subscribe_to_doctor_post() {
         } else {
             $doctors = $this->subscription_api_model->get_all_subscribed_doctors($user_id);
         }
-
         if ($doctors) {
             $this->response(['status' => 'success', 'data' => $doctors], REST_Controller::HTTP_OK);
         } else {

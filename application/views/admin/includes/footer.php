@@ -53,10 +53,66 @@
         });
 </script> 
 
+<script src="<?= ADMIN_ASSETS_PATH ?>assets/js/plugins/toastr/toastr.min.js"></script>
+
 <script type="text/javascript">
-  setTimeout(function() {
-    $('.alert-success').fadeOut('fast');
-}, 3000);
+    $(document).ready(function() {
+        toastr.options = {
+            "closeButton": true,
+            "debug": false,
+            "progressBar": true,
+            "positionClass": "toast-top-right",
+            "onclick": null,
+            "showDuration": "400",
+            "hideDuration": "1000",
+            "timeOut": "5000",
+            "extendedTimeOut": "1000",
+            "showEasing": "swing",
+            "hideEasing": "linear",
+            "showMethod": "fadeIn",
+            "hideMethod": "fadeOut"
+        };
+
+        <?php 
+            $success = $this->session->flashdata('success_message');
+            $error = $this->session->flashdata('error_message');
+            $msg = $this->session->flashdata('msg');
+            $login_error = $this->session->flashdata('login_error_message');
+            
+            // Aggressively clear from session superglobal
+            $to_clear = ['success_message', 'error_message', 'msg', 'login_error_message'];
+            foreach($to_clear as $key) {
+                unset($_SESSION[$key]);
+                if(isset($_SESSION['__ci_vars'][$key])) {
+                    unset($_SESSION['__ci_vars'][$key]);
+                }
+            }
+            
+            // Force save session data immediately
+            session_write_close();
+        ?>
+
+        <?php if ($success): ?>
+            toastr.success("<?php echo $success; ?>");
+        <?php endif; ?>
+
+        <?php if ($error): ?>
+            toastr.error("<?php echo $error; ?>");
+        <?php endif; ?>
+
+        <?php if ($msg): ?>
+            toastr.info("<?php echo $msg; ?>");
+        <?php endif; ?>
+
+        <?php if ($login_error): ?>
+            toastr.error("<?php echo $login_error; ?>");
+        <?php endif; ?>
+
+        // Automatically hide static alerts after 3 seconds
+        setTimeout(function() {
+            $('.alert').fadeOut('slow');
+        }, 3000);
+    });
 </script>
 </body>
 </html>

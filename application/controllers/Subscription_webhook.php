@@ -43,21 +43,142 @@ class Subscription_webhook extends MY_Controller {
         }
 
         $callback_data = $verification_result['data'];
+        $event = isset($callback_data['event']) ? $callback_data['event'] : 'UNKNOWN';
         
         // Store webhook response for debugging
         $webhook_data = array(
-            'pay_transaction_id' => $callback_data['merchantOrderId'],
+            'pay_transaction_id' => $callback_data['merchantOrderId'] ?? ($callback_data['transactionId'] ?? 'unknown'),
             'json_file' => $payload,
-            'webhook_type' => 'subscription_sdk_verified',
+            'webhook_type' => 'phonepe_' . str_replace('.', '_', $event),
             'created_at' => time()
         );
         
         $this->db->insert('webhook_response', $webhook_data);
 
-        // Process subscription payment with SDK-verified data
+        // Process based on event type
+        switch ($event) {
+            case 'subscription.setup.order.completed':
+            case 'subscription.setup.order.failed':
+                $this->handleSetupEvent($callback_data);
+                break;
+                
+            case 'subscription.notification.completed':
+            case 'subscription.notification.failed':
+                $this->handleNotificationEvent($callback_data);
+                break;
+                
+            case 'subscription.redemption.transaction.completed':
+            case 'subscription.redemption.transaction.failed':
+            case 'subscription.redemption.order.completed':
+            case 'subscription.redemption.order.failed':
+                $this->handleRedemptionEvent($callback_data);
+                break;
+                
+            default:
+                // Fallback for older webhook patterns or generic payments
+                $this->handleGenericPayment($callback_data);
+                break;
+        }
+
+        // Return HTTP 200 for successful processing
+        http_response_code(200);
+        echo json_encode(['status' => 'success', 'message' => 'Webhook processed successfully']);
+    }
+
+    private function handleSetupEvent($data) {
+        $transaction_id = $data['merchantOrderId'];
+        $status = ($data['status'] == 'PAYMENT_SUCCESS' || $data['status'] == 'SUCCESS') ? 'success' : 'failed';
+        
+        $this->db->where('transaction_id', $transaction_id);
+        $payment = $this->db->get('doctor_subscription_payments')->row();
+
+        if ($payment) {
+            $this->db->where('id', $payment->id);
+            $this->db->update('doctor_subscription_payments', [
+                'payment_status' => $status,
+                'error_message' => $data['errorMessage'] ?? null,
+                'updated_at' => date('Y-m-d H:i:s')
+            ]);
+            
+            if ($status == 'success') {
+                // Extract UMN (Agreement ID)
+                $umn_id = null;
+                if (isset($data['paymentDetails'])) {
+                    foreach ($data['paymentDetails'] as $pd) {
+                        if (isset($pd['rail']['umn'])) {
+                            $umn_id = $pd['rail']['umn'];
+                            break;
+                        }
+                    }
+                }
+                
+                $phonepe_sub_id = $data['subscriptionId'] ?? null;
+                $merchant_sub_id = $data['merchantSubscriptionId'] ?? null;
+
+                $this->activateSubscription($payment->subscription_id, $payment->doctor_id, $payment->is_renewal, $umn_id, $phonepe_sub_id, $merchant_sub_id);
+                $this->setupAutopayRenewal($payment->subscription_id, $payment->doctor_id);
+            }
+        }
+        
+        log_message('info', "PhonePe Setup Webhook: Order $transaction_id is $status");
+    }
+
+    private function handleNotificationEvent($data) {
+        $transaction_id = $data['merchantOrderId'] ?? $data['transactionId']; // Fallback for various versions
+        $status = ($data['status'] == 'SUCCESS') ? 'notified' : 'notification_failed';
+        
+        $this->db->where('transaction_id', $transaction_id);
+        $this->db->update('doctor_subscription_payments', [
+            'payment_status' => $status,
+            'error_message' => $data['errorMessage'] ?? null,
+            'updated_at' => date('Y-m-d H:i:s')
+        ]);
+        
+        log_message('info', "PhonePe Notification Webhook: Order $transaction_id is $status");
+    }
+
+    private function handleRedemptionEvent($data) {
+        $transaction_id = $data['merchantOrderId'] ?? ($data['transactionId'] ?? 'unknown');
+        $status = ($data['status'] == 'PAYMENT_SUCCESS' || $data['status'] == 'SUCCESS' || $data['state'] == 'COMPLETED') ? 'success' : 'failed';
+        
+        $this->db->where('transaction_id', $transaction_id);
+        $payment = $this->db->get('doctor_subscription_payments')->row();
+        
+        if ($payment) {
+            $this->db->where('id', $payment->id);
+            $this->db->update('doctor_subscription_payments', [
+                'payment_status' => $status,
+                'phonepe_transaction_id' => $data['orderId'] ?? ($data['transactionId'] ?? null),
+                'error_message' => $data['errorMessage'] ?? ($data['responseCode'] ?? null),
+                'updated_at' => date('Y-m-d H:i:s')
+            ]);
+            
+            if ($status == 'success') {
+                // Extract UMN and Subscription ID from redemption data if available
+                $umn_id = null;
+                $phonepe_sub_id = $data['subscriptionId'] ?? null;
+                
+                if (isset($data['paymentDetails'])) {
+                    foreach ($data['paymentDetails'] as $pd) {
+                        if (isset($pd['rail']['umn'])) {
+                            $umn_id = $pd['rail']['umn'];
+                            break;
+                        }
+                    }
+                }
+                
+                $merchant_sub_id = $data['merchantSubscriptionId'] ?? null;
+
+                $this->activateSubscription($payment->subscription_id, $payment->doctor_id, $payment->is_renewal, $umn_id, $phonepe_sub_id, $merchant_sub_id);
+            }
+        }
+        
+        log_message('info', "PhonePe Redemption Webhook: Order $transaction_id is $status");
+    }
+
+    private function handleGenericPayment($callback_data) {
         $transaction_id = $callback_data['merchantOrderId'];
         $payment_status = $callback_data['status'];
-        $amount = isset($callback_data['amount']) ? $callback_data['amount'] / 100 : 0;
         $error_code = isset($callback_data['errorCode']) ? $callback_data['errorCode'] : null;
         $error_message = isset($callback_data['errorMessage']) ? $callback_data['errorMessage'] : null;
 
@@ -80,12 +201,11 @@ class Subscription_webhook extends MY_Controller {
             'payment_status' => $final_status,
             'error_code' => $error_code,
             'error_message' => $error_message,
-            'phonepe_response' => json_encode($callback_data),
             'updated_at' => date('Y-m-d H:i:s')
         ));
 
         // Process payment based on comprehensive status
-        $this->processPaymentStatus($payment, $final_status, $error_code, $error_message);
+        $this->processPaymentStatus($payment, $final_status, $error_code, $error_message, $callback_data);
         
         // Return HTTP 200 for successful processing
         http_response_code(200);
@@ -150,13 +270,27 @@ class Subscription_webhook extends MY_Controller {
     }
 
     // Comprehensive payment status processing
-    private function processPaymentStatus($payment, $status, $error_code = null, $error_message = null) {
+    private function processPaymentStatus($payment, $status, $error_code = null, $error_message = null, $extra_data = []) {
         $subscription_id = $payment->subscription_id;
         
         switch ($status) {
             case 'PAYMENT_SUCCESS':
             case 'captured':
-                $this->activateSubscription($subscription_id, $payment->doctor_id, $payment->is_renewal);
+                // Extract possible IDs for PhonePe
+                $umn_id = null;
+                $phonepe_sub_id = $extra_data['subscriptionId'] ?? null;
+                $merchant_sub_id = $extra_data['merchantSubscriptionId'] ?? null;
+                
+                if (isset($extra_data['paymentDetails'])) {
+                    foreach ($extra_data['paymentDetails'] as $pd) {
+                        if (isset($pd['rail']['umn'])) {
+                            $umn_id = $pd['rail']['umn'];
+                            break;
+                        }
+                    }
+                }
+
+                $this->activateSubscription($subscription_id, $payment->doctor_id, $payment->is_renewal, $umn_id, $phonepe_sub_id, $merchant_sub_id);
                 $this->setupAutopayRenewal($subscription_id, $payment->doctor_id);
                 $this->sendSubscriptionActivationNotification($payment->doctor_id, $subscription_id);
                 log_message('info', "Subscription activated successfully for ID: $subscription_id");
@@ -209,11 +343,11 @@ class Subscription_webhook extends MY_Controller {
     }
 
     // Activate subscription
-    private function activateSubscription($subscription_id, $doctor_id, $is_renewal = 0) {
+    private function activateSubscription($subscription_id, $doctor_id, $is_renewal = 0, $umn_id = null, $phonepe_sub_id = null, $merchant_sub_id = null) {
         // Get subscription and plan details to know duration
         $this->db->select('ds.*, dsp.duration_days');
         $this->db->from('doctor_subscriptions ds');
-        $this->db->join('doctor_subscription_plans dsp', 'ds.doctor_subscription_plan_id = dsp.id');
+        $this->db->join('subscription_plans dsp', 'ds.doctor_subscription_plan_id = dsp.id');
         $this->db->where('ds.id', $subscription_id);
         $sub = $this->db->get()->row();
 
@@ -223,6 +357,21 @@ class Subscription_webhook extends MY_Controller {
             'status' => 'active',
             'updated_at' => date('Y-m-d H:i:s')
         );
+
+        if ($umn_id) {
+            $update_data['autopay_agreement_id'] = $umn_id;
+            $update_data['phonepe_agreement_id'] = $umn_id;
+            $update_data['autopay_enabled'] = 1;
+            $update_data['payment_gateway'] = 'phonepe';
+        }
+
+        if ($phonepe_sub_id) {
+            $update_data['phonepe_subscription_id'] = $phonepe_sub_id;
+        }
+
+        if ($merchant_sub_id) {
+            $update_data['merchant_subscription_id'] = $merchant_sub_id;
+        }
 
         if ($is_renewal == 1) {
             // Extension Logic: Add duration to current end_at
@@ -234,6 +383,10 @@ class Subscription_webhook extends MY_Controller {
         } else {
             $update_data['activated_at'] = date('Y-m-d H:i:s');
         }
+
+        // Calculate next_billing_date (1 day before expiry)
+        $target_expiry = isset($update_data['end_at']) ? $update_data['end_at'] : $sub->end_at;
+        $update_data['next_billing_date'] = date('Y-m-d', strtotime($target_expiry . ' -1 day'));
 
         $this->db->where('id', $subscription_id);
         $this->db->update('doctor_subscriptions', $update_data);

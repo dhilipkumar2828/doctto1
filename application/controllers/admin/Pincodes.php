@@ -130,7 +130,7 @@ class Pincodes extends MY_Controller {
 function edit($id) {
         $qry = $this->db->query("select * from pincodes where id='".$id."'");
         $this->data['location'] = $qry->row();
-        $this->data['title'] = 'Edit City';
+        $this->data['title'] = 'Edit Pincode';
         $this->load->view('admin/includes/header', $this->data);
         $this->load->view('admin/edit_pincode', $this->data);
         $this->load->view('admin/includes/footer');

@@ -113,7 +113,6 @@ class Phonepe_hermes extends REST_Controller
      */
     public function initiate_payment_post()
     {
-
         $user_id = $this->post('user_id') ?? $this->get('user_id');
         $plan_id = $this->post('plan_id') ?? $this->get('plan_id');
         $type = $this->post('type') ?? $this->get('type');
@@ -146,13 +145,40 @@ class Phonepe_hermes extends REST_Controller
 
         $amount = (float)$plan->price;
         $amount_in_paise = intval($amount * 100);
-        $merchant_transaction_id = 'MTID' . time() . rand(100, 999);
+        $mtid = 'MTID' . time() . rand(100, 999);
+        $merchant_sub_id = 'SUB' . time() . rand(100, 999);
+
+        // Pre-calculate next billing date (1 day before expiry)
+        $next_billing = date('Y-m-d', strtotime('+' . ($plan->duration_days - 1) . ' days'));
+
+        $data = [
+            'type' => $type,
+            'plan_id' => $plan_id,
+            'duration' => $plan->duration_days,
+            'amount' => $amount,
+            'payment_id' => $mtid,
+            'payment_status' => 'pending',
+            'payment_gateway' => 'phonepe',
+            'auto_renew' => 1,
+            'merchant_subscription_id' => $merchant_sub_id,
+            'next_billing_date' => $next_billing
+        ];
+
+        if ($type == 'doctor') {
+            $data['doctor_id'] = $user_id;
+            $data['featured_status'] = 0;
+        } else {
+            $data['user_id'] = $user_id;
+        }
+
+        // Record it in our DB immediately
+        $this->subscription_api_model->buy_subscription($data);
 
         $this->db->insert('payment_logs', [
             'user_id' => $user_id,
             'plan_id' => $plan_id,
             'type' => $type,
-            'merchant_transaction_id' => $merchant_transaction_id,
+            'merchant_transaction_id' => $mtid,
             'amount' => $amount,
             'payment_status' => 'pending',
             'provider' => 'phonepe_v2',
@@ -167,10 +193,10 @@ class Phonepe_hermes extends REST_Controller
                 return;
             }
 
-            $redirect_url = base_url('api/phonepe_hermes/verify_payment/' . $merchant_transaction_id);
+            $redirect_url = base_url('api/phonepe_hermes/verify_payment/' . $mtid);
 
             $payload = [
-                'merchantOrderId' => $merchant_transaction_id,
+                'merchantOrderId' => $mtid,
                 'amount' => (int)$amount_in_paise,
                 'merchantUserId' => 'MUID' . $user_id,
                 'merchantUrls' => [
@@ -181,11 +207,11 @@ class Phonepe_hermes extends REST_Controller
                     'type' => 'SUBSCRIPTION_CHECKOUT_SETUP',
                     'subscriptionDetails' => [
                         'subscriptionType' => 'RECURRING',
-                        'merchantSubscriptionId' => 'SUB' . time() . rand(100, 999),
+                        'merchantSubscriptionId' => $merchant_sub_id,
                         'authWorkflowType' => 'TRANSACTION',
                         'amountType' => 'FIXED',
                         'maxAmount' => (int)$amount_in_paise,
-                        'frequency' => 'ON_DEMAND',
+                        'frequency' => 'MONTHLY',
                         'productType' => 'UPI_MANDATE',
                         'expireAt' => (int)(strtotime('+1 day') * 1000)
                     ]
@@ -217,7 +243,7 @@ class Phonepe_hermes extends REST_Controller
 
             $response_data = json_decode($curl_response, true);
 
-            $this->db->where('merchant_transaction_id', $merchant_transaction_id);
+            $this->db->where('merchant_transaction_id', $mtid);
             $this->db->update('payment_logs', [
                 'request_payload' => json_encode($payload),
                 'response_payload' => $curl_response
@@ -227,7 +253,7 @@ class Phonepe_hermes extends REST_Controller
                 $raw_payment_url = $response_data['redirectUrl'];
                 $bridge_url = base_url('upi_intent_bridge.php')
                     . '?payment_url=' . urlencode($raw_payment_url)
-                    . '&mtid=' . urlencode($merchant_transaction_id)
+                    . '&mtid=' . urlencode($mtid)
                     . '&return_url=' . urlencode($redirect_url);
 
                 $this->response([
@@ -236,7 +262,7 @@ class Phonepe_hermes extends REST_Controller
                     'payment_url' => $raw_payment_url,
                     'bridge_url' => $bridge_url,
                     'redirect_url' => $redirect_url,
-                    'merchantTransactionId' => $merchant_transaction_id
+                    'merchantTransactionId' => $mtid
                 ], REST_Controller::HTTP_OK);
             }
             else {
@@ -253,12 +279,8 @@ class Phonepe_hermes extends REST_Controller
         }
     }
 
-    /**
-     * Step 1b: Initiate AutoPay Setup (Subscription Mandate)
-     */
     public function initiate_autopay_setup_post()
     {
-
         $user_id = $this->post('user_id') ?? $this->get('user_id');
         $plan_id = $this->post('plan_id') ?? $this->get('plan_id');
         $type = $this->post('type') ?? $this->get('type');
@@ -275,12 +297,14 @@ class Phonepe_hermes extends REST_Controller
             return;
         }
 
-        $amount = (float)$plan->price;
+        // For first time activation/mandate setup, charge only small amount or full price based on plan
+        // Usually checkout setup flows require a small amount for mandate verification
+        $amount = (float)($plan->price > 0 ? $plan->price : 2.00); 
         $amount_in_paise = intval($amount * 100);
 
         $duration = (int)$plan->duration_days;
         if ($duration == 1)
-            $frequency = 'ON_DEMAND';
+            $frequency = 'DAILY';
         elseif ($duration == 7)
             $frequency = 'WEEKLY';
         elseif ($duration >= 25 && $duration <= 35)
@@ -294,15 +318,41 @@ class Phonepe_hermes extends REST_Controller
         else
             $frequency = 'ON_DEMAND';
 
-        $merchant_transaction_id = 'MTID' . time() . rand(100, 999);
-        $merchant_subscription_id = 'MSUB' . time() . rand(100, 999);
-        $merchant_user_id = 'MUID' . $user_id;
+        $mtid = 'MTID' . time() . rand(100, 999);
+        $merchant_sub_id = 'MSUB' . time() . rand(100, 999);
+
+        // Pre-calculate next billing date (1 day before expiry)
+        $next_billing = date('Y-m-d', strtotime('+' . ($plan->duration_days - 1) . ' days'));
+
+        $data = [
+            'type' => $type,
+            'plan_id' => $plan_id,
+            'duration' => $plan->duration_days,
+            'amount' => $amount,
+            'payment_id' => $mtid,
+            'payment_status' => 'pending',
+            'payment_gateway' => 'phonepe',
+            'auto_renew' => 1,
+            'merchant_subscription_id' => $merchant_sub_id,
+            'next_billing_date' => $next_billing,
+            'autopay_enabled' => 1
+        ];
+
+        if ($type == 'doctor') {
+            $data['doctor_id'] = $user_id;
+            $data['featured_status'] = 0;
+        } else {
+            $data['user_id'] = $user_id;
+        }
+
+        // Record it in our DB immediately
+        $this->subscription_api_model->buy_subscription($data);
 
         $this->db->insert('payment_logs', [
             'user_id' => $user_id,
             'plan_id' => $plan_id,
             'type' => $type,
-            'merchant_transaction_id' => $merchant_transaction_id,
+            'merchant_transaction_id' => $mtid,
             'amount' => $amount,
             'payment_status' => 'pending',
             'provider' => 'phonepe_autopay',
@@ -317,33 +367,28 @@ class Phonepe_hermes extends REST_Controller
                 return;
             }
 
-            $redirect_url = base_url('api/phonepe_hermes/verify_payment/' . $merchant_transaction_id);
+            $redirect_url = base_url('api/phonepe_hermes/verify_payment/' . $mtid);
             $mandate_expiry = (time() + (10 * 365 * 24 * 60 * 60)) * 1000;
-            $device_os = strtoupper($this->post('device_os') ?? $this->get('device_os') ?? 'ANDROID');
 
             $payload = [
-                'merchantOrderId' => $merchant_transaction_id,
-                'amount' => (int)$amount_in_paise,
+                'merchantOrderId' => $mtid,
+                'amount' => (int)"200",
                 'merchantUserId' => 'MUID' . $user_id,
                 'merchantUrls' => [
                     'redirectUrl' => $redirect_url,
-                    'cancelRedirectUrl' => base_url('admin/doctor_subscription_plans')
                 ],
                 'paymentFlow' => [
                     'type' => 'SUBSCRIPTION_CHECKOUT_SETUP',
                     'subscriptionDetails' => [
                         'subscriptionType' => 'RECURRING',
-                        'merchantSubscriptionId' => $merchant_subscription_id,
+                        'merchantSubscriptionId' => $merchant_sub_id,
                         'authWorkflowType' => 'TRANSACTION',
-                        'amountType' => 'FIXED',
-                        'maxAmount' => (int)$amount_in_paise,
+                        'amountType' => 'VARIABLE',
+                        'maxAmount' => (int)"99900", // Default high max for variable amounts
                         'frequency' => $frequency,
                         'productType' => 'UPI_MANDATE',
                         'expireAt' => (int)$mandate_expiry
                     ]
-                ],
-                'deviceContext' => [
-                    'deviceOS' => 'ANDROID'
                 ],
                 'expireAfter' => 3000,
                 'metaInfo' => [
@@ -370,7 +415,7 @@ class Phonepe_hermes extends REST_Controller
 
             $response_data = json_decode($curl_response, true);
 
-            $this->db->where('merchant_transaction_id', $merchant_transaction_id);
+            $this->db->where('merchant_transaction_id', $mtid);
             $this->db->update('payment_logs', [
                 'request_payload' => json_encode($payload),
                 'response_payload' => $curl_response
@@ -380,7 +425,7 @@ class Phonepe_hermes extends REST_Controller
                 $raw_payment_url = $response_data['redirectUrl'];
                 $bridge_url = base_url('upi_intent_bridge.php')
                     . '?payment_url=' . urlencode($raw_payment_url)
-                    . '&mtid=' . urlencode($merchant_transaction_id)
+                    . '&mtid=' . urlencode($mtid)
                     . '&return_url=' . urlencode($redirect_url);
 
                 $this->response([
@@ -388,8 +433,8 @@ class Phonepe_hermes extends REST_Controller
                     'message' => 'AutoPay setup initiated',
                     'payment_url' => $raw_payment_url,
                     'redirect_url' => $redirect_url,
-                    'merchantTransactionId' => $merchant_transaction_id,
-                    'merchantSubscriptionId' => $merchant_subscription_id
+                    'merchantTransactionId' => $mtid,
+                    'merchantSubscriptionId' => $merchant_sub_id
                 ], REST_Controller::HTTP_OK);
             }
             else {
@@ -474,20 +519,35 @@ class Phonepe_hermes extends REST_Controller
             $res = $client->getOrderStatus($mtid, true);
 
             if ($res && $res->getState() == 'COMPLETED') {
-                $subscription_id = null;
-                $res_array = json_decode(json_encode($res), true);
-                if (isset($res_array['subscriptionDetails']['subscriptionId'])) {
-                    $subscription_id = $res_array['subscriptionDetails']['subscriptionId'];
+                $log = $this->db->where('merchant_transaction_id', $mtid)->get('payment_logs')->row();
+                if ($log) {
+                    $this->db->where('id', $log->id);
+                    $this->db->update('payment_logs', [
+                        'payment_status' => 'success',
+                        'response_payload' => json_encode($res)
+                    ]);
+
+                    // Separate UMN and PhonePe Subscription ID
+                    $umn_id = null;
+                    $phonepe_sub_id = null;
+                    $res_array = json_decode(json_encode($res), true);
+
+                    if (isset($res_array['subscriptionDetails']['subscriptionId'])) {
+                        $phonepe_sub_id = $res_array['subscriptionDetails']['subscriptionId'];
+                    }
+
+                    if (isset($res_array['paymentDetails'])) {
+                        foreach ($res_array['paymentDetails'] as $pd) {
+                            if (isset($pd['rail']['umn'])) {
+                                $umn_id = $pd['rail']['umn'];
+                                break;
+                            }
+                        }
+                    }
+
+                    $this->activate_user_subscription($log, $umn_id, $phonepe_sub_id);
+                    return true;
                 }
-
-                $this->db->where('merchant_transaction_id', $mtid);
-                $this->db->update('payment_logs', [
-                    'payment_status' => 'success',
-                    'response_payload' => json_encode($res)
-                ]);
-
-                $this->activate_user_subscription($mtid, $subscription_id);
-                return true;
 
             }
             elseif ($res) {
@@ -509,11 +569,8 @@ class Phonepe_hermes extends REST_Controller
     /**
      * Internal activation logic with AutoPay support
      */
-    private function activate_user_subscription($mtid, $autopay_agreement_id = null)
+    private function activate_user_subscription($log, $autopay_agreement_id = null, $phonepe_subscription_id = null)
     {
-        $this->db->where('merchant_transaction_id', $mtid);
-        $log = $this->db->get('payment_logs')->row();
-
         if ($log && ($log->payment_status == 'success')) {
 
             if ($log->type == 'appointment') {
@@ -566,19 +623,27 @@ class Phonepe_hermes extends REST_Controller
 
             $plan = $this->subscription_api_model->get_plan_details($log->plan_id);
             if ($plan) {
+                // Calculate merchantSubscriptionId from request payload
+                $payload_data = json_decode($log->request_payload, true);
+                $merchant_subscription_id = $payload_data['paymentFlow']['subscriptionDetails']['merchantSubscriptionId'] ?? null;
+
+                // Pre-calculate next billing date (1 day before expiry)
+                $next_billing = date('Y-m-d', strtotime('+' . ($plan->duration_days - 1) . ' days'));
+
                 $data = [
                     'type' => $log->type,
                     'plan_id' => $log->plan_id,
                     'duration' => $plan->duration_days,
                     'amount' => $log->amount,
-                    'payment_id' => $mtid
+                    'payment_id' => $log->merchant_transaction_id,
+                    'payment_status' => 'success',
+                    'payment_gateway' => 'phonepe',
+                    'autopay_enabled' => ($autopay_agreement_id || $phonepe_subscription_id) ? 1 : 0,
+                    'autopay_agreement_id' => $autopay_agreement_id,
+                    'phonepe_subscription_id' => $phonepe_subscription_id,
+                    'merchant_subscription_id' => $merchant_subscription_id,
+                    'next_billing_date' => $next_billing
                 ];
-
-                if ($autopay_agreement_id) {
-                    $data['autopay_agreement_id'] = $autopay_agreement_id;
-                    $data['autopay_enabled'] = 1;
-                    $data['payment_gateway'] = 'phonepe';
-                }
 
                 if ($log->type == 'doctor') {
                     $data['doctor_id'] = $log->user_id;
@@ -590,23 +655,79 @@ class Phonepe_hermes extends REST_Controller
 
                 $sub = $this->subscription_api_model->buy_subscription($data);
 
-                if ($sub && $autopay_agreement_id && $log->type == 'doctor') {
-                    // Extract merchantSubscriptionId from request payload
-                    $payload_data = json_decode($log->request_payload, true);
-                    $merchant_subscription_id = $payload_data['paymentFlow']['subscriptionDetails']['merchantSubscriptionId'] ?? null;
-
-                    // Calculate next_billing_date to be 1 day before the expiry
-                    // If subscribed on 18th, next billing should be on 17th of next cycle
-                    $next_billing = date('Y-m-d', strtotime($sub->end_at . ' -1 day'));
+                // Handle already_active case by updating the existing subscription with new payment/autopay info
+                if ($sub === 'already_active') {
+                    $table = ($log->type == 'doctor') ? 'doctor_subscriptions' : 'user_subscriptions';
+                    $id_field = ($log->type == 'doctor') ? 'doctor_id' : 'user_id';
                     
-                    $this->db->where('id', $sub->id);
-                    $this->db->update('doctor_subscriptions', [
-                        'autopay_agreement_id' => $autopay_agreement_id,
-                        'merchant_subscription_id' => $merchant_subscription_id,
-                        'autopay_enabled' => 1,
+                    // Update existing active record with new payment/autopay details
+                    $update_fields = [
+                        'payment_id' => $log->merchant_transaction_id,
+                        'amount' => $log->amount,
+                        'payment_status' => 'success',
                         'payment_gateway' => 'phonepe',
-                        'next_billing_date' => $next_billing,
-                        'featured_status' => 0
+                        'autopay_enabled' => $data['autopay_enabled'],
+                        'autopay_agreement_id' => $autopay_agreement_id,
+                        'phonepe_subscription_id' => $phonepe_subscription_id,
+                        'merchant_subscription_id' => $merchant_subscription_id,
+                        'next_billing_date' => $next_billing
+                    ];
+                    
+                    if ($log->type == 'doctor') {
+                        $update_fields['phonepe_agreement_id'] = $autopay_agreement_id; // Syncing
+                    }
+
+                    $this->db->where($id_field, $log->user_id);
+                    $this->db->where('status', 'active');
+                    $this->db->update($table, $update_fields);
+                    
+                    // Fetch the updated object
+                    $sub = $this->db->get_where($table, [$id_field => $log->user_id, 'status' => 'active'])->row();
+                }
+
+                if (is_object($sub) && $log->type == 'doctor') {
+                    // Create the initial payment success invoice
+                    $this->db->insert('doctor_subscription_payments', [
+                        'doctor_id' => $log->user_id,
+                        'subscription_id' => $sub->id,
+                        'payment_amount' => $log->amount,
+                        'payment_method' => 'phonepe',
+                        'payment_status' => 'success',
+                        'is_renewal' => 0,
+                        'autopay_setup' => $autopay_agreement_id ? 1 : 0,
+                        'autopay_agreement_id' => $autopay_agreement_id,
+                        'transaction_id' => $log->merchant_transaction_id,
+                        'created_at' => date('Y-m-d H:i:s')
+                    ]);
+
+                    // Schedule the future renewal visually in subscription_renewals
+                    if ($autopay_agreement_id) {
+                        $this->db->where('subscription_id', $sub->id);
+                        $this->db->where('status', 'scheduled');
+                        $exists = $this->db->get('subscription_renewals')->row();
+
+                        if (!$exists) {
+                            $renewal_data = [
+                                'subscription_id' => $sub->id,
+                                'doctor_id' => $log->user_id,
+                                'renewal_date' => $sub->end_at,
+                                'status' => 'scheduled',
+                                'created_at' => date('Y-m-d H:i:s')
+                            ];
+                            $this->db->insert('subscription_renewals', $renewal_data);
+                        }
+                    }
+                } elseif (is_object($sub) && $log->type != 'doctor') {
+                    // Create the initial payment success invoice for User/Patient
+                    $this->db->insert('user_subscription_payments', [
+                        'user_id' => $log->user_id,
+                        'subscription_id' => $sub->id,
+                        'plan_id' => $log->plan_id,
+                        'payment_amount' => $log->amount,
+                        'payment_method' => 'phonepe',
+                        'payment_status' => 'success',
+                        'transaction_id' => $log->merchant_transaction_id,
+                        'created_at' => date('Y-m-d H:i:s')
                     ]);
                 }
 
@@ -768,12 +889,32 @@ class Phonepe_hermes extends REST_Controller
 
         $results = [];
         foreach ($subscriptions as $sub) {
+            $sub->sub_type = 'doctor';
+            $results[] = $this->process_single_renewal($sub);
+        }
+
+        // Find user subscriptions due for billing
+        $this->db->select('us.*, sp.price as plan_price, sp.duration_days');
+        $this->db->from('user_subscriptions us');
+        $this->db->join('subscription_plans sp', 'sp.id = us.plan_id');
+        $this->db->where('us.autopay_enabled', 1);
+        $this->db->where('us.status', 'active');
+        $this->db->where('us.payment_gateway', 'phonepe');
+        $this->db->where('us.next_billing_date <=', date('Y-m-d'));
+        $this->db->where('us.merchant_subscription_id !=', NULL);
+        
+        $user_subscriptions = $this->db->get()->result();
+
+        foreach ($user_subscriptions as $sub) {
+            $sub->sub_type = 'user';
+            $sub->doctor_id = $sub->user_id; // Aliasing for compatibility in process_single_renewal
+            $sub->doctor_subscription_plan_id = $sub->plan_id; // Aliasing
             $results[] = $this->process_single_renewal($sub);
         }
 
         $this->response([
             'status' => 'success',
-            'processed_count' => count($subscriptions),
+            'processed_count' => count($subscriptions) + count($user_subscriptions),
             'results' => $results
         ], REST_Controller::HTTP_OK);
     }
@@ -782,12 +923,13 @@ class Phonepe_hermes extends REST_Controller
     {
         $merchant_transaction_id = 'REN' . time() . rand(100, 999);
         $amount_in_paise = intval($sub->plan_price * 100);
+        $sub_type = isset($sub->sub_type) ? $sub->sub_type : 'doctor';
 
         // 1. Log the renewal attempt
         $log_data = [
             'user_id' => $sub->doctor_id,
             'plan_id' => $sub->doctor_subscription_plan_id,
-            'type' => 'doctor',
+            'type' => $sub_type,
             'merchant_transaction_id' => $merchant_transaction_id,
             'amount' => $sub->plan_price,
             'payment_status' => 'pending',
