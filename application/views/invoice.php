@@ -95,7 +95,17 @@
                                 <td width="20">&nbsp;</td>
                                  <td width="490" align="right">
                                     <div style="font-size: 15px; margin-bottom: 5px; text-align: right;">
-                                        <p style="margin:0px; padding: 0px 0px 5px 0px;"><strong style="font-size: 20px;">Date : <span><?=date('d-m-Y h:i A')?></span></strong></p>
+                                        <?php 
+                                            $p_date = date('d-m-Y h:i A');
+                                            if(!empty($epresp) && !empty($epresp->created_at)){
+                                                $p_date = date('d-m-Y h:i A', $epresp->created_at);
+                                            } elseif(!empty($diag) && !empty($diag->created_at)){
+                                                $p_date = date('d-m-Y h:i A', $diag->created_at);
+                                            } elseif(!empty($pres) && !empty($pres->created_at)){
+                                                $p_date = date('d-m-Y h:i A', $pres->created_at);
+                                            }
+                                        ?>
+                                        <p style="margin:0px; padding: 0px 0px 5px 0px;"><strong style="font-size: 20px;">Date : <span><?=$p_date?></span></strong></p>
                                       
                                     </div>
                                 </td> 
