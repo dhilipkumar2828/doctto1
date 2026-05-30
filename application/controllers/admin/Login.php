@@ -37,9 +37,65 @@ class Login extends CI_Controller {
 //         {
 //             $city1=$city;
 //         }
+        $ip_add = $_SERVER['REMOTE_ADDR'];
+        $city = 'Localhost';
+        $ctx = stream_context_create([
+            'http' => [
+                'timeout' => 2,
+                'user_agent' => 'Mozilla/5.0'
+            ]
+        ]);
+
+        if ($ip_add !== '127.0.0.1' && $ip_add !== '::1') {
+            $geo_data = @file_get_contents("http://ip-api.com/json/{$ip_add}", false, $ctx);
+            if ($geo_data) {
+                $details = json_decode($geo_data);
+                if (isset($details->city) && !empty($details->city)) {
+                    $city = $details->city;
+                }
+            }
+            if ($city === 'Localhost') {
+                $geo_data2 = @file_get_contents("http://ipinfo.io/{$ip_add}/json", false, $ctx);
+                if ($geo_data2) {
+                    $details2 = json_decode($geo_data2);
+                    if (isset($details2->city) && !empty($details2->city)) {
+                        $city = $details2->city;
+                    }
+                }
+            }
+        } else {
+            // It's localhost (127.0.0.1 or ::1), resolve the server's/machine's public IP and city
+            $geo_data = @file_get_contents("http://ip-api.com/json/", false, $ctx);
+            if ($geo_data) {
+                $details = json_decode($geo_data);
+                if (isset($details->city) && !empty($details->city)) {
+                    $city = $details->city;
+                }
+                if (isset($details->query) && !empty($details->query)) {
+                    $ip_add = $details->query;
+                }
+            }
+            if ($city === 'Localhost') {
+                $geo_data2 = @file_get_contents("http://ipinfo.io/json", false, $ctx);
+                if ($geo_data2) {
+                    $details2 = json_decode($geo_data2);
+                    if (isset($details2->city) && !empty($details2->city)) {
+                        $city = $details2->city;
+                    }
+                    if (isset($details2->ip) && !empty($details2->ip)) {
+                        $ip_add = $details2->ip;
+                    }
+                }
+            }
+        }
+
+        if ($city == 'Hyder?b?d') {
+            $city = "Hyderabad";
+        }
+
         $log = array(
-            "ip_address"=> $_SERVER['REMOTE_ADDR'],
-            "city" => "Localhost",
+            "ip_address"=> $ip_add,
+            "city" => $city,
             "login_time" => time()
         );
 
